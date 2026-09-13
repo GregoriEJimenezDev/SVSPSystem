@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+.build/
+venv/
+.env
+
+# Node/Vite
+/node_modules/
+/dist/
+/.vite/
+/.cache/
+
+# Database
+*.db
+
+# Environment
+.env.example
+
+# OS
+.DS_Store
