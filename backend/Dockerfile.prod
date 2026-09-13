@@ -1,0 +1,36 @@
+FROM python:3.12-slim
+
+# Establecer directorio de trabajo
+WORKDIR /app
+
+# Instalar solo las dependencias del sistema necesarias (sin compiladores)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar archivo de requisitos
+COPY requirements.txt .
+
+# Instalar dependencias Python (solo producción)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar todo el código de la aplicación
+COPY app /app/app
+
+# Copiar configuración de Alembic
+COPY alembic /app/alembic
+COPY alemc.ini /app/alembic.ini
+
+# Variables de entorno por defecto
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# No ejecutar como root
+RUN useradd -m -u 1000 appuser
+USER appuser
+
+# Puerto de exposición
+EXPOSE 8000
+
+# Comando de arranque para producción
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,24 @@
+# FastAPI y dependencias
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+asyncpg
+psycopg2-binary
+python-jose[cryptography]
+passlib[bcrypt]
+openpyxl
+pydantic-settings
+pydantic
+
+# Seguridad y utilidades
+bcrypt
+python-dotenv
+
+# QR y generación de documentos
+qrcode
+reportlab
+weasyprint
+
+# FastAPI utilities
+fastapi_users
