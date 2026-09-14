@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from core.database import get_db
-from core.models import Employee
+from core.models import Employee, User
 from core.schemas import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from core.dependencies import get_current_active_user, log_audit
 

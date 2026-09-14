@@ -16,7 +16,13 @@ class Settings(BaseSettings):
 
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    admin_email: str = "admin@svsp.local"
+    admin_password: str = "Admin123!"
+    admin_full_name: str = "Administrador SVSP"
+
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, extra="ignore"
+    )
 
 
 @lru_cache

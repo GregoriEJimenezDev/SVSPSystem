@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from typing import List
 
 from core.database import get_db
-from core.models import Visitor
+from core.models import Visitor, User
 from core.schemas import VisitorCreate, VisitorResponse, VisitorQRResponse
 from core.dependencies import get_current_active_user, log_audit
 import qrcode

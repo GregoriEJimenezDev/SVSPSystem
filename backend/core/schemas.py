@@ -12,9 +12,14 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3)
+    password: str = Field(min_length=1)
+
+
 # User schemas
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str = Field(min_length=3)
     full_name: str
     modules: List[str] = Field(default_factory=list)
 
@@ -34,6 +39,12 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 # Employee schemas

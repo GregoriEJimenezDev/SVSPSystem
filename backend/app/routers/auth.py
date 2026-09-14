@@ -8,14 +8,16 @@ from core.security import (
     verify_password,
     hash_password,
 )
-from core.schemas import UserCreate, UserResponse, Token
+from core.schemas import UserCreate, UserResponse, Token, LoginRequest, LoginResponse
 from core.models import User
 from core.dependencies import log_audit
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación"])
 
 
-@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED
+)
 def register(
     user_data: UserCreate, db: Session = Depends(get_db), request: Request = None
 ):
@@ -60,14 +62,18 @@ def register(
         expires_delta=None,  # Will use default from settings
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": UserResponse.model_validate(new_user),
+    }
 
 
-@router.post("/login", response_model=Token)
-def login(email: str, password: str, db: Session = Depends(get_db)):
+@router.post("/login", response_model=LoginResponse)
+def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     """Iniciar sesión"""
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.hashed_password):
+    user = db.query(User).filter(User.email == credentials.email).first()
+    if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas",
@@ -78,4 +84,8 @@ def login(email: str, password: str, db: Session = Depends(get_db)):
         data={"sub": user.email},
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": UserResponse.model_validate(user),
+    }

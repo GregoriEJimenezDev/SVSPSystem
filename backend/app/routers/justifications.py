@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from core.database import get_db
-from core.models import Employee, Justification, Attendance
+from core.models import Justification, User, Attendance
 from core.schemas import (
     JustificationCreate,
     JustificationUpdate,

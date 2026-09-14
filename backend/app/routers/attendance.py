@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from core.database import get_db
-from core.models import Employee, Attendance, Justification
+from core.models import Employee, Attendance, Justification, User
 from core.schemas import (
     AttendanceResponse,
     AttendanceCreate,
@@ -13,7 +13,7 @@ from core.schemas import (
 )
 from core.dependencies import get_current_active_user, log_audit
 import openpyxl
-from datetime import date
+from datetime import date, time, datetime
 
 router = APIRouter(prefix="/api/v1/attendance", tags=["Asistencia"])
 
@@ -109,20 +109,18 @@ def import_excel(
 
             # Calcular total de horas si tenemos ambas
             if check_in and check_out:
-                from datetime import datetime
-
                 dt_in = datetime.combine(date.today(), check_in)
                 dt_out = datetime.combine(date.today(), check_out)
                 diff = dt_out - dt_in
-                total_hours = round(diff.total_seconds() / 3600, 2)
+                total_hours = str(round(diff.total_seconds() / 3600, 2))
 
-            # Verificar si ya existe registro para este empleado en esta fecha
-            # El date no viene del Excel directamente, asumimos fecha actual o buscar
+            # Verificar si ya existe registro para este empleado en el día de hoy
+            today = date.today()
             existing_attendance = (
                 db.query(Attendance)
                 .filter(
                     Attendance.employee_id == employee.id,
-                    # Note: we'd need the date from the Excel, for now skip date filtering
+                    Attendance.date == today,
                 )
                 .first()
             )
@@ -138,6 +136,7 @@ def import_excel(
                 # Crear nuevo registro
                 new_attendance = Attendance(
                     employee_id=employee.id,
+                    date=today,
                     check_in=check_in,
                     check_out=check_out,
                     total_hours=total_hours,
@@ -209,8 +208,6 @@ def attendance_stats(
     current_user: User = Depends(get_current_active_user),
 ):
     """Estadísticas de asistencia"""
-    from sqlalchemy import func
-
     query = db.query(Attendance)
 
     if start_date:
@@ -218,28 +215,31 @@ def attendance_stats(
     if end_date:
         query = query.filter(Attendance.date <= end_date)
 
-    total = query.count()
+    records = query.all()
+    total = len(records)
 
-    # Contar por estado (usando total_hours para inferir)
-    # Esto es simplificado - en un sistema completo usaríamos un status field
-    present = query.filter(Attendance.total_hours > 0).count()
-    absent = total - present  # Simplificación
+    # total_hours se guarda como texto: contar presente si hay hora de entrada
+    present = sum(1 for r in records if r.check_in is not None)
+    absent = total - present
 
-    # Calcular promedio de horas
-    result = (
-        db.query(func.coalesce(func.avg(Attendance.total_hours), 0))
-        .filter(Attendance.total_hours.isnot(None))
-        .scalar()
-    )
-    avg_hours = round(float(result), 2) if result else 0.0
+    # Promedio de horas (parsear el texto a número cuando sea posible)
+    hours = []
+    for r in records:
+        if r.total_hours is None:
+            continue
+        try:
+            hours.append(float(str(r.total_hours).strip()))
+        except (ValueError, TypeError):
+            continue
+    avg_hours = round(sum(hours) / len(hours), 2) if hours else 0.0
 
-    from core.schemas import AttendanceStats
+    total_employees = db.query(Employee).filter(Employee.is_active == True).count()
 
     return AttendanceStats(
-        total_employees=db.query(Employee).filter(Employee.is_active).count(),
+        total_employees=total_employees,
         present_today=present,
         absent_today=absent,
-        late_today=0,  # Simplificado
+        late_today=0,
         total_hours=avg_hours,
     )
 
@@ -252,8 +252,6 @@ def attendance_chart_data(
     current_user: User = Depends(get_current_active_user),
 ):
     """Datos para gráfico de distribución de asistencia"""
-    from sqlalchemy import func
-
     query = db.query(Attendance)
 
     if start_date:
@@ -261,20 +259,17 @@ def attendance_chart_data(
     if end_date:
         query = query.filter(Attendance.date <= end_date)
 
-    # Contar por día (simplificado - en producción sería por día específico)
-    total_records = query.count()
-
-    # Datos simplificados para el pastel
-    # En un sistema real, calcularíamos: a tiempo, tarde, ausente por día
-    present_count = min(total_records, 3)  # Placeholder
-    absent_count = max(0, total_records - 3)
+    records = query.all()
+    present_count = sum(1 for r in records if r.check_in is not None)
+    absent_count = len(records) - present_count
     late_count = 0
 
-    # Retornar fecha del último registro para el gráfico
+    # Retornar fecha del último registro para el gráfico (hoy si no hay datos)
     last_record = query.order_by(Attendance.date.desc()).first()
-    chart_date = last_record.date if last_record else None
-
-    from core.schemas import AttendanceChartData
+    if last_record is not None and last_record.date is not None:
+        chart_date = last_record.date
+    else:
+        chart_date = date.today()
 
     return AttendanceChartData(
         date=chart_date, present=present_count, absent=absent_count, late=late_count

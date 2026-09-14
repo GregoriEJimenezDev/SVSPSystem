@@ -10,7 +10,7 @@ venv/
 .env
 
 # Node/Vite
-/node_modules/
+node_modules/
 /dist/
 /.vite/
 /.cache/
@@ -18,8 +18,9 @@ venv/
 # Database
 *.db
 
-# Environment
-.env.example
+# Logs
+*.log
+npm-debug.log*
 
 # OS
 .DS_Store
