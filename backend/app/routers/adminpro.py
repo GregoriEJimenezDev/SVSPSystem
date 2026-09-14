@@ -6,6 +6,7 @@ from core.database import get_db
 from core.models import User, Employee, Attendance, Justification, Visitor, AuditLog
 from core.schemas import UserCreate, UserUpdate, UserResponse, AuditLogResponse
 from core.dependencies import get_current_active_user, require_adminpro, log_audit
+from core.security import hash_password
 from datetime import datetime
 
 
@@ -17,6 +18,7 @@ def create_admin_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_adminpro),
+    request: Request = None,
 ):
     """Crear nuevo usuario del sistema (solo AdminPRO)"""
     # Verificar si el usuario ya existe
@@ -27,12 +29,8 @@ def create_admin_user(
             detail="El correo electrónico ya está registrado",
         )
 
-    # Hashear contraseña
-    hashed_pw = (
-        user_data.hashed_password
-    )  # Ya viene hasheado desde el frontend o usar hash_password
-    if not hashed_pw.startswith("$2"):
-        hashed_pw = hash_password(user_data.password)
+    # Hashear contraseña (siempre llega en texto plano desde el formulario)
+    hashed_pw = hash_password(user_data.password)
 
     new_user = User(
         email=user_data.email,
@@ -81,6 +79,7 @@ def update_user(
     user_data: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_adminpro),
+    request: Request = None,
 ):
     """Actualizar usuario (rol, módulos, estado)"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -122,6 +121,7 @@ def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_adminpro),
+    request: Request = None,
 ):
     """Inhabilitar usuario (soft delete)"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -130,10 +130,12 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
         )
 
-    # No permitir inhabilitar al último AdminPRO
-    adminpro_count = db.query(User).filter(User.modules.contains(["adminpro"])).count()
+    # No permitir inhabilitar al último AdminPRO (conteo en Python:
+    # la columna modules es JSON y el operador @> no existe para json puro)
+    active_users = db.query(User).filter(User.is_active == True).all()
+    adminpro_count = sum(1 for u in active_users if "adminpro" in (u.modules or []))
 
-    if user.is_active and adminpro_count <= 1:
+    if user.is_active and "adminpro" in (user.modules or []) and adminpro_count <= 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se puede inhabilitar al último administrador",

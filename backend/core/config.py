@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     admin_password: str = "Admin123!"
     admin_full_name: str = "Administrador SVSP"
 
+    public_base_url: str = "http://localhost:8000"
+
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=False, extra="ignore"
     )

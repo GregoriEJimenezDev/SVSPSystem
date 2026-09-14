@@ -3,14 +3,14 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from core.database import get_db
-from core.models import Justification, User, Attendance
+from core.models import Employee, Justification, User
 from core.schemas import (
     JustificationCreate,
     JustificationUpdate,
     JustificationResponse,
     AttendanceStats,
 )
-from core.dependencies import get_current_active_user, log_audit
+from core.dependencies import require_module, log_audit
 from datetime import date
 
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v1/justifications", tags=["Justificaciones"])
 def create_justification(
     justification_data: JustificationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Crear justificación por rango de fechas"""
     # Verificar que el empleado existe
@@ -92,7 +92,7 @@ def create_justification(
 def list_justifications(
     employee_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Listar justificaciones de un empleado"""
     justifications = (
@@ -106,7 +106,7 @@ def update_justification(
     justification_id: int,
     justification_data: JustificationUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Actualizar justificación"""
     justification = (

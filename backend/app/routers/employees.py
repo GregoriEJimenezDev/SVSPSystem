@@ -5,7 +5,7 @@ from typing import List
 from core.database import get_db
 from core.models import Employee, User
 from core.schemas import EmployeeCreate, EmployeeUpdate, EmployeeResponse
-from core.dependencies import get_current_active_user, log_audit
+from core.dependencies import require_module, log_audit
 
 router = APIRouter(prefix="/api/v1/employees", tags=["Empleados"])
 
@@ -15,7 +15,7 @@ def list_employees(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Listar empleados (solo activos o todos dependiendo de rol)"""
     query = db.query(Employee)
@@ -27,7 +27,7 @@ def list_employees(
 def create_employee(
     employee_data: EmployeeCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Crear nuevo empleado"""
     new_employee = Employee(
@@ -57,7 +57,7 @@ def update_employee(
     employee_id: int,
     employee_data: EmployeeUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Actualizar empleado (nombre, departamento)"""
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
@@ -92,7 +92,7 @@ def update_employee(
 def toggle_employee_status(
     employee_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_module("asistencia")),
 ):
     """Inhabilitar o rehabilitar empleado (baja lógica)"""
     employee = db.query(Employee).filter(Employee.id == employee_id).first()

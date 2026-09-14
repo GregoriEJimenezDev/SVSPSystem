@@ -195,3 +195,16 @@ class PaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+# Report QR schemas
+class ReportQRRequest(BaseModel):
+    employee_id: Optional[int] = None
+    department: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+
+class ReportQRResponse(BaseModel):
+    qr_base64: str
+    url: str
