@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Layout from "../components/Layout";
 import { api } from "../services/api";
 
@@ -39,6 +39,7 @@ export default function Asistencia() {
   const [qr, setQr] = useState(null);
   const [justifs, setJustifs] = useState([]);
   const [justForm, setJustForm] = useState({ employee_id: "", type: "permiso", description: "", start_date: "", end_date: "" });
+  const [dragOver, setDragOver] = useState(false);
 
   function loadAll() {
     const q = new URLSearchParams();
@@ -70,7 +71,7 @@ export default function Asistencia() {
   async function handleImport(e) {
     e.preventDefault();
     if (!file) {
-      setMsg({ type: "error", text: "Selecciona el archivo Excel del ponchador (.xlsx)." });
+      setMsg({ type: "error", text: "Selecciona un archivo." });
       return;
     }
     setLoading(true);
@@ -88,6 +89,26 @@ export default function Asistencia() {
     }
     setLoading(false);
   }
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      setFile(files[0]);
+      setMsg({ type: "", text: "" });
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
 
   async function handleQR() {
     setLoading(true);
@@ -154,12 +175,18 @@ export default function Asistencia() {
         ))}
       </div>
 
-      <div className="card">
+      <div className={`card ${dragOver ? "drop-active" : ""}`}
+          onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
         <h2>📥 Importar Excel del ponchador</h2>
         <form onSubmit={handleImport} className="toolbar">
           <div className="field">
             <label>Archivo .xlsx</label>
-            <input className="input" type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files[0])} />
+            <input className="input" type="file"
+              onChange={(e) => setFile(e.target.files[0])}
+              style={{ display: "none" }} id="fileInput" />
+            <label htmlFor="fileInput" className="drop-zone-label">
+              {file ? file.name : "Arrastra cualquier archivo aquí o haz clic"}
+            </label>
           </div>
           <button className="btn btn-gold" disabled={loading}>
             {loading ? "Procesando..." : "Importar"}

@@ -2,6 +2,13 @@ import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { api } from "../services/api";
 
+function downloadQR(qrBase64, name) {
+  const link = document.createElement("a");
+  link.href = `data:image/png;base64,${qrBase64}`;
+  link.download = `QR_${name.replace(/\s+/g, "_")}.png`;
+  link.click();
+}
+
 export default function Visitas() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ first_name: "", last_name: "", document_number: "" });
@@ -36,14 +43,23 @@ export default function Visitas() {
     setLoading(false);
   }
 
-  async function handleQR(id) {
-    try {
-      const r = await api.get(`/api/v1/visitors/${id}/qr`);
-      setQr(r);
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
+async function handleDownloadQR(v) {
+  try {
+    const r = await api.get(`/api/v1/visitors/${v.id}/qr`);
+    downloadQR(r.qr_base64, `${r.visitor.first_name} ${r.visitor.last_name}`);
+  } catch (err) {
+    setMsg({ type: "error", text: err.message });
   }
+}
+
+async function handleQR(id) {
+  try {
+    const r = await api.get(`/api/v1/visitors/${id}/qr`);
+    setQr(r);
+  } catch (err) {
+    setMsg({ type: "error", text: err.message });
+  }
+}
 
   async function handleVerify(id) {
     try {
@@ -114,6 +130,7 @@ export default function Visitas() {
                   </td>
                   <td style={{ display: "flex", gap: 8 }}>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleQR(v.id)}>QR</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleDownloadQR(v)}>Descargar</button>
                     {!v.is_verified && (
                       <button className="btn btn-gold btn-sm" onClick={() => handleVerify(v.id)}>Verificar</button>
                     )}
@@ -136,8 +153,12 @@ export default function Visitas() {
               {qr.visitor.first_name} {qr.visitor.last_name} · {qr.visitor.document_number}
             </p>
             <img className="qr" src={"data:image/png;base64," + qr.qr_base64} alt="QR del visitante" />
+            <button className="btn btn-gold" style={{ marginTop: 12 }}
+              onClick={() => downloadQR(qr.qr_base64, `${qr.visitor.first_name} ${qr.visitor.last_name}`)}>
+              📥 Descargar QR
+            </button>
             <p style={{ fontSize: 13, color: "#8a8a8a" }}>Al escanear se muestra la ficha sin necesidad de login.</p>
-            <button className="btn btn-gold" onClick={() => setQr(null)} style={{ marginTop: 12 }}>Cerrar</button>
+            <button className="btn btn-ghost" onClick={() => setQr(null)} style={{ marginTop: 12 }}>Cerrar</button>
           </div>
         </div>
       )}

@@ -32,16 +32,16 @@ def import_excel(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
-    """Importar archivo Excel del poncher biométrico"""
-    # Validar tipo de archivo
-    if not file.filename.endswith(".xlsx"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser .xlsx"
-        )
-
+    """Importar archivo del poncher biométrico"""
     # Leer archivo
     contents = file.file.read()
-    wb = openpyxl.load_workbook(contents, data_only=True)
+    try:
+        wb = openpyxl.load_workbook(contents, data_only=True)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Archivo inválido. Se esperaba un archivo Excel (.xlsx)",
+        )
     ws = wb.active
 
     # Leer encabezados por nombre de columna (no posición fija)

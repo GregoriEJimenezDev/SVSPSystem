@@ -154,7 +154,42 @@ table.data tr:hover td { background: #fffdf5; }
 .module-card h3 { font-size: 18px; margin-bottom: 6px; }
 .module-card p { color: var(--muted); font-size: 14px; }
 
-@media (max-width: 640px) {
-  .topbar { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
-  .page { padding: 20px 14px 48px; }
+.drop-active {
+  border: 2px dashed #b8912f !important;
+  background: rgba(184, 145, 47, 0.05) !important;
+}
+
+.drop-zone-label {
+  display: block;
+  padding: 20px;
+  border: 2px dashed #d4c8b0;
+  border-radius: 12px;
+  text-align: center;
+  color: #8a8a8a;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease;
+  background: #fafaf8;
+}
+
+.drop-zone-label:hover {
+  border-color: #b8912f;
+  background: #fffdf5;
+}
+
+.btn-download {
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-download:hover {
+  background: var(--gold-light);
+  border-color: var(--gold);
 }
