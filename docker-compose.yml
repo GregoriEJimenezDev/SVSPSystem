@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  # Backend FastAPI con carga caliente para desarrollo
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./.env:/app/.env:ro
+    environment:
+      DATABASE_URL: postgresql://svsp_user:SvspPass2026@localhost:5432/svsp
+      SECRET_KEY: svsupersecretkey12345678901234567890
+      DEBUG: "true"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      ADMIN_EMAIL: admin@svsp.local
+      ADMIN_PASSWORD: Admin123!
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    depends_on:
+      - db
+    # Hot reload para desarrollo
+    restart: unless-stopped
+
+  # Frontend React con Vite dev server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB: svsp
+      - POSTGRES_USER: svsp_user
+      - POSTGRES_PASSWORD: SvspPass2026
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  pg_data:
