@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic[pydantic-settings]
+pandas
+openpyxl
+reportlab
+python-docx
+qrcode[pil]
+xlsx

@@ -1,0 +1,11 @@
+/* Custom utilities for the Attendent system */
+
+/* Card hover effect */
+.card:hover {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
