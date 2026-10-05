@@ -9,11 +9,11 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
-# CORS - configured explicitly for production frontend domain
+# CORS - allow Codespaces frontend, local Vite, and production deployments
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
