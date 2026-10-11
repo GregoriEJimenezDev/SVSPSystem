@@ -54,6 +54,35 @@ export const api = {
     fd.append("file", file);
     return request(path, { method: "POST", body: fd, formData: true });
   },
+  download: async (path, body) => {
+    const res = await fetch(API + path, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    if (res.status === 401) {
+      localStorage.removeItem("user_token");
+      localStorage.removeItem("user_modules");
+      localStorage.removeItem("user_email");
+      window.location.href = "/login.html";
+      throw new Error("Sesión vencida");
+    }
+    if (!res.ok) {
+      let detail = "Error " + res.status;
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch (e) {
+        /* noop */
+      }
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    const fallback = "reporte-asistencia.docx";
+    const disp = res.headers.get("Content-Disposition") || "";
+    const m = /filename=([^;]+)/.exec(disp);
+    return { blob, filename: (m ? m[1].trim().replace(/"/g, "") : fallback) };
+  },
 };
 
 export function getSession() {

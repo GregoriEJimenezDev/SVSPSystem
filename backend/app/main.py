@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from core.config import get_settings
 
 from app.routers import auth, employees, attendance, visitors, justifications, adminpro
+from app.routers import departments
 
 from core.config import get_settings
 
@@ -58,6 +59,7 @@ app.add_middleware(
 # Incluir routers (cada router ya trae su prefijo /api/v1/...)
 app.include_router(auth.router, tags=["Autenticación"])
 app.include_router(employees.router, tags=["Empleados"])
+app.include_router(departments.router, tags=["Departamentos"])
 app.include_router(attendance.router, tags=["Asistencia"])
 app.include_router(visitors.router, tags=["Visitas"])
 app.include_router(justifications.router, tags=["Justificaciones"])

@@ -66,6 +66,22 @@ El endpoint `POST /api/v1/attendance/import-excel` acepta **`.xls` y `.xlsx`**:
 Los empleados inexistentes se crean automáticamente. El frontend acepta
 arrastrar `.xls` o `.xlsx`.
 
+### 4. Empleados, departamentos y reporte Word
+
+- **Editar empleados**: en Asistencia → tarjeta Empleados, botón Editar
+  (nombre y departamento) → `PUT /api/v1/employees/{id}`.
+- **Departamentos**: tarjeta Departamentos (crear, renombrar, inhabilitar/
+  rehabilitar). Endpoints `GET/POST /api/v1/departments/`,
+  `PUT/DELETE /api/v1/departments/{id}`. En Neon existente aplicar
+  `backend/migrations/002_departments.sql` (siembra los ya usados).
+- **Filtrar por departamento**: dropdown en Asistencia; aplica a empleados
+  (`GET /api/v1/employees/?department=`) y a registros/reporte
+  (`GET /api/v1/attendance/?department=`, `POST .../report-qr`,
+  `POST .../report-docx`).
+- **Descargar Word**: botón junto al QR. `POST /api/v1/attendance/report-docx`
+  con los mismos filtros devuelve `.docx` editable con columnas Empleado,
+  Hora de entrada, Hora salida y Total horas trabajadas.
+
 ## GitHub Codespaces
 
 - El navegador **no alcanza `localhost:8000`** (ese `localhost` es tu máquina).

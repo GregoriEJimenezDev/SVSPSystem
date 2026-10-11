@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from core.database import get_db
 from core.models import Employee, User
@@ -14,12 +14,18 @@ router = APIRouter(prefix="/api/v1/employees", tags=["Empleados"])
 def list_employees(
     skip: int = 0,
     limit: int = 100,
+    department: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
-    """Listar empleados (solo activos o todos dependiendo de rol)"""
+    """Listar empleados (solo activos o todos dependiendo de rol).
+
+    `department` filtra por coincidencia parcial (case-insensitive).
+    """
     query = db.query(Employee)
-    employees = query.offset(skip).limit(limit).all()
+    if department:
+        query = query.filter(Employee.department.ilike(f"%{department.strip()}%"))
+    employees = query.order_by(Employee.name).offset(skip).limit(limit).all()
     return employees
 
 
