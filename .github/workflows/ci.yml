@@ -32,6 +32,8 @@ jobs:
             email-validator \
             python-dotenv \
             openpyxl \
+            xlrd \
+            xlwt \
             "qrcode[pil]" \
             python-multipart \
             "httpx==0.27.2" \

@@ -18,6 +18,8 @@ from core.dependencies import require_module, log_audit
 from core.security import create_access_token, decode_token
 from core.config import get_settings
 import openpyxl
+import xlrd
+from xlrd import xldate_as_datetime
 import qrcode
 import base64
 from io import BytesIO
@@ -26,48 +28,267 @@ from datetime import date, time, datetime, timedelta
 router = APIRouter(prefix="/api/v1/attendance", tags=["Asistencia"])
 
 
+# ---------------------------------------------------------------------------
+# Lectura de planillas: .xlsx (openpyxl) y .xls (xlrd, p. ej. reportes ZKTeco)
+# ---------------------------------------------------------------------------
+
+def _cell_str(value):
+    """Normaliza una celda a texto (o None si vacía)."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        s = value.strip()
+        return s or None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    s = str(value).strip()
+    return s or None
+
+
+def _read_xlsx(contents: bytes):
+    """Devuelve [(nombre_hoja, filas)] donde filas[0] es el encabezado."""
+    wb = openpyxl.load_workbook(BytesIO(contents), data_only=True, read_only=True)
+    tables = []
+    try:
+        for ws in wb.worksheets:
+            rows = [[c.value for c in row] for row in ws.iter_rows()]
+            tables.append((ws.title or "", rows))
+    finally:
+        wb.close()
+    return tables
+
+
+def _read_xls(contents: bytes):
+    """Devuelve [(nombre_hoja, filas)] convirtiendo fechas numéricas."""
+    book = xlrd.open_workbook(file_contents=contents)
+    tables = []
+    for sh in book.sheets():
+        rows = []
+        for r in range(sh.nrows):
+            row = []
+            for c in range(sh.ncols):
+                ctype = sh.cell_type(r, c)
+                value = sh.cell_value(r, c)
+                if ctype == xlrd.XL_CELL_DATE:
+                    try:
+                        value = xldate_as_datetime(value, book.datemode)
+                    except Exception:
+                        pass
+                row.append(value)
+            rows.append(row)
+        tables.append((sh.name or "", rows))
+    return tables
+
+
+def _read_spreadsheet(contents: bytes, filename: str):
+    """Lee .xlsx u .xls y devuelve [(hoja, filas)]. Lanza 400 si es inválido."""
+    name = (filename or "").lower()
+    readers = (
+        (_read_xlsx, _read_xls) if name.endswith(".xlsx") else (_read_xls, _read_xlsx)
+    )
+    last_error: Exception | None = None
+    for reader in readers:
+        try:
+            tables = reader(contents)
+            if any(len(rows) > 1 for _, rows in tables):
+                return tables
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001 - se intenta el otro formato
+            last_error = exc
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Archivo inválido. Se esperaba un archivo Excel (.xls o .xlsx)",
+    )
+
+
+def _norm_header(value) -> str:
+    return (
+        _cell_str(value).lower().replace("_", " ").replace("-", " ").replace(".", " ")
+        if _cell_str(value)
+        else ""
+    )
+
+
+def _merge_zkteco_header(rows, idx: int):
+    """Combina encabezado + sub-encabezados (formato ZKTeco: On-duty/Off-duty
+    en la fila siguiente). Devuelve (encabezados, filas_consumidas)."""
+    headers = [_norm_header(v) for v in rows[idx]]
+    consumed = 1
+    if idx + 1 < len(rows):
+        nxt = [_norm_header(v) for v in rows[idx + 1]]
+        if any("on duty" in h or "off duty" in h for h in nxt):
+            merged = []
+            width = max(len(headers), len(nxt))
+            for i in range(width):
+                parent = headers[i] if i < len(headers) else ""
+                sub = nxt[i] if i < len(nxt) else ""
+                merged.append(f"{parent} {sub}".strip())
+            headers, consumed = merged, 2
+    return headers, consumed
+
+
+def _detect_columns(headers: list[str]):
+    """Mapea encabezados a índices. Devuelve dict o None si no calza."""
+    exact = {
+        "empleado": "empleado",
+        "nombre": "empleado",
+        "name": "empleado",
+        "hora entrada": "entrada",
+        "horaentrada": "entrada",
+        "hora de entrada": "entrada",
+        "entrada": "entrada",
+        "check in": "entrada",
+        "hora salida": "salida",
+        "horasalida": "salida",
+        "hora de salida": "salida",
+        "salida": "salida",
+        "check out": "salida",
+        "department": "depto",
+        "departamento": "depto",
+        "dept": "depto",
+        "depto": "depto",
+        "date": "fecha",
+        "fecha": "fecha",
+    }
+    mapping: dict[str, int] = {}
+    for i, h in enumerate(headers):
+        key = exact.get(h.replace("  ", " ").strip())
+        if key and key not in mapping:
+            mapping[key] = i
+    # Fallback ZKTeco: primera columna que contenga cada marcador
+    if "entrada" not in mapping:
+        for i, h in enumerate(headers):
+            if "on duty" in h:
+                mapping["entrada"] = i
+                break
+    if "salida" not in mapping:
+        for i, h in enumerate(headers):
+            if "off duty" in h:
+                mapping["salida"] = i
+                break
+    if "empleado" not in mapping:
+        return None
+    if "entrada" not in mapping or "salida" not in mapping:
+        return None
+    return mapping
+
+
+def _find_table(tables):
+    """Busca en todas las hojas la primera tabla con columnas reconocibles."""
+    for sheet_name, rows in tables:
+        if not rows:
+            continue
+        for idx in range(min(12, len(rows))):
+            headers, consumed = _merge_zkteco_header(rows, idx)
+            mapping = _detect_columns(headers)
+            if mapping:
+                return sheet_name, headers, mapping, rows[idx + consumed :]
+    return None
+
+
+def _parse_record_date(value):
+    """Devuelve date o None. Acepta datetime/date, 'YYYY-MM-DD' y 'DD/MM/YYYY'."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    s = str(value).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_time(value):
+    """Devuelve time o None. Acepta 'HH:MM[:SS]', datetime y objetos con .hour."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.time()
+    if hasattr(value, "hour") and not isinstance(value, str):
+        try:
+            return time(value.hour, value.minute, getattr(value, "second", 0))
+        except (ValueError, TypeError):
+            return None
+    if isinstance(value, str):
+        parts = value.strip().split(":")
+        try:
+            return time(
+                int(parts[0]) if len(parts) > 0 else 0,
+                int(parts[1]) if len(parts) > 1 else 0,
+                int(parts[2]) if len(parts) > 2 else 0,
+            )
+        except (ValueError, IndexError):
+            return None
+    return None
+
+
 @router.post("/import-excel", response_model=ExcelImportResult)
 def import_excel(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
-    """Importar archivo del poncher biométrico"""
-    # Leer archivo
-    contents = file.file.read()
-    try:
-        wb = openpyxl.load_workbook(contents, data_only=True)
-    except Exception:
+    """Importar archivo del ponchador biométrico (.xls o .xlsx).
+
+    Formatos aceptados:
+    - Planilla simple con columnas Empleado, Hora_entrada, Hora_salida.
+    - Reporte ZKTeco StandardReport (.xls): se usa la hoja con registros
+      por día (Name, Department, Date, On-duty, Off-duty).
+    """
+    # Leer archivo (se acepta .xls y .xlsx por extensión o contenido)
+    filename = (file.filename or "").lower()
+    if filename and not (filename.endswith(".xls") or filename.endswith(".xlsx")):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Archivo inválido. Se esperaba un archivo Excel (.xlsx)",
+            detail="Archivo inválido. Se esperaba un archivo Excel (.xls o .xlsx)",
         )
-    ws = wb.active
+    contents = file.file.read()
+    if not contents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Archivo inválido. Se esperaba un archivo Excel (.xls o .xlsx)",
+        )
+    tables = _read_spreadsheet(contents, filename)
 
-    # Leer encabezados por nombre de columna (no posición fija)
-    headers = [cell.value for cell in ws[1]]
-    header_map = {str(h).strip().lower(): i for i, h in enumerate(headers)}
-
-    required_cols = ["empleado", "hora_entrada", "hora_salida"]
-    for col in required_cols:
-        if col not in header_map:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Columna requerida '{col}' no encontrada en el Excel",
-            )
+    found = _find_table(tables)
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "No se encontraron columnas reconocibles. Se esperaba "
+                "Empleado/Hora_entrada/Hora_salida o un reporte ZKTeco "
+                "(Name/Department/Date/On-duty/Off-duty)."
+            ),
+        )
+    sheet_name, headers, mapping, data_rows = found
 
     processed = 0
     created = 0
     updated = 0
     errors = []
 
-    for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+    for row_idx, raw_row in enumerate(data_rows, start=2):
         processed += 1
         try:
+            row = list(raw_row) + [None] * (len(headers) - len(list(raw_row)))
             # Mapear datos por encabezado
-            empleado_nombre = row[header_map.get("empleado", 0)]
-            hora_entrada = row[header_map.get("hora_entrada", 1)]
-            hora_salida = row[header_map.get("hora_salida", 2)]
+            empleado_nombre = _cell_str(row[mapping["empleado"]])
+            hora_entrada = row[mapping["entrada"]]
+            hora_salida = row[mapping["salida"]]
+            departamento = (
+                _cell_str(row[mapping["depto"]]) if "depto" in mapping else None
+            )
+            fecha_registro = (
+                _parse_record_date(row[mapping["fecha"]])
+                if "fecha" in mapping
+                else None
+            ) or date.today()
 
             if not empleado_nombre:
                 errors.append(f"Fila {row_idx}: Nombre de empleado vacío")
@@ -76,44 +297,30 @@ def import_excel(
             # Buscar o crear empleado
             employee = (
                 db.query(Employee)
-                .filter(Employee.name.ilike(str(empleado_nombre).strip()))
+                .filter(Employee.name.ilike(empleado_nombre))
                 .first()
             )
 
             if not employee:
                 # Crear automáticamente
-                employee = Employee(name=str(empleado_nombre).strip(), is_active=True)
+                employee = Employee(
+                    name=empleado_nombre,
+                    department=departamento,
+                    is_active=True,
+                )
                 db.add(employee)
                 db.commit()
                 db.refresh(employee)
                 created += 1
             else:
+                if departamento and employee.department != departamento:
+                    employee.department = departamento
                 updated += 1
 
-            # Parsear horas (formato time o string)
-            check_in = None
-            check_out = None
+            # Parsear horas (formato time, datetime o string)
+            check_in = _parse_time(hora_entrada)
+            check_out = _parse_time(hora_salida)
             total_hours = None
-
-            if hora_entrada:
-                if isinstance(hora_entrada, str):
-                    parts = hora_entrada.split(":")
-                    check_in = time(
-                        int(parts[0]) if len(parts) > 0 else 0,
-                        int(parts[1]) if len(parts) > 1 else 0,
-                    )
-                elif hasattr(hora_entrada, "hour"):
-                    check_in = hora_entrada.time()
-
-            if hora_salida:
-                if isinstance(hora_salida, str):
-                    parts = hora_salida.split(":")
-                    check_out = time(
-                        int(parts[0]) if len(parts) > 0 else 0,
-                        int(parts[1]) if len(parts) > 1 else 0,
-                    )
-                elif hasattr(hora_salida, "hour"):
-                    check_out = hora_salida.time()
 
             # Calcular total de horas si tenemos ambas
             if check_in and check_out:
@@ -122,13 +329,13 @@ def import_excel(
                 diff = dt_out - dt_in
                 total_hours = str(round(diff.total_seconds() / 3600, 2))
 
-            # Verificar si ya existe registro para este empleado en el día de hoy
-            today = date.today()
+            # Verificar si ya existe registro para este empleado en esa fecha
+            # (usa la fecha del reporte cuando viene incluida, si no la de hoy)
             existing_attendance = (
                 db.query(Attendance)
                 .filter(
                     Attendance.employee_id == employee.id,
-                    Attendance.date == today,
+                    Attendance.date == fecha_registro,
                 )
                 .first()
             )
@@ -144,7 +351,7 @@ def import_excel(
                 # Crear nuevo registro
                 new_attendance = Attendance(
                     employee_id=employee.id,
-                    date=today,
+                    date=fecha_registro,
                     check_in=check_in,
                     check_out=check_out,
                     total_hours=total_hours,
