@@ -272,6 +272,7 @@ def import_excel(
     processed = 0
     created = 0
     updated = 0
+    skipped = 0
     errors = []
     seen_departments: set[str] = set()
 
@@ -294,6 +295,17 @@ def import_excel(
 
             if not empleado_nombre:
                 errors.append(f"Fila {row_idx}: Nombre de empleado vacío")
+                continue
+
+            # Parsear horas primero: si no hay ni entrada ni salida, la fila
+            # se omite por completo (no crea empleado ni registro).
+            check_in = _parse_time(hora_entrada)
+            check_out = _parse_time(hora_salida)
+
+            # Omitir filas sin marcaciones (ni entrada ni salida): no son
+            # registros válidos, solo ensucian la tabla, conteos y reportes.
+            if check_in is None and check_out is None:
+                skipped += 1
                 continue
 
             # Buscar o crear empleado (nombre normalizado: sin espacios extra,
@@ -321,14 +333,11 @@ def import_excel(
                     employee.department = departamento
                 updated += 1
 
+            total_hours = None
+
             # Registrar departamento visto (se crean al final del import)
             if departamento:
                 seen_departments.add(departamento)
-
-            # Parsear horas (formato time, datetime o string)
-            check_in = _parse_time(hora_entrada)
-            check_out = _parse_time(hora_salida)
-            total_hours = None
 
             # Calcular total de horas si tenemos ambas
             if check_in and check_out:
@@ -393,6 +402,7 @@ def import_excel(
         updated=updated,
         errors=errors[:50],  # Limit error list
         departments_created=departments_created,
+        skipped=skipped,
     )
 
     # Log de auditoría
@@ -407,6 +417,7 @@ def import_excel(
             "created": created,
             "errors_count": len(errors),
             "departments_created": departments_created,
+            "skipped": skipped,
         },
         request=None,
     )
