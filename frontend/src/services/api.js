@@ -1,4 +1,9 @@
-const API = "http://localhost:8000";
+// En GitHub Codespaces el navegador no alcanza localhost:8000 del servidor,
+// así que usamos rutas relativas (el proxy de Vite las reenvía al backend).
+// En desarrollo local se mantiene http://localhost:8000.
+const API = window.location.hostname.endsWith(".app.github.dev")
+  ? ""
+  : "http://localhost:8000";
 
 function authHeaders() {
   const token = localStorage.getItem("user_token");

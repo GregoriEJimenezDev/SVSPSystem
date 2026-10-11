@@ -16,10 +16,13 @@ app = FastAPI(
     description="SVSP - Sistema Web de Gestión de Asistencia y Visitas",
 )
 
-# CORS configurado explícitamente con orígenes desde settings
+# CORS configurado explícitamente con orígenes desde settings.
+# allow_origin_regex cubre los frontends servidos desde GitHub Codespaces
+# (*.app.github.dev), donde el navegador no puede usar localhost.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https://.*\.app\.github\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
