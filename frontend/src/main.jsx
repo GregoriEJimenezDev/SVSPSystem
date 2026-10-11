@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Asistencia from "./pages/Asistencia";
+import Empleados from "./pages/Empleados";
+import Justificaciones from "./pages/Justificaciones";
 import Visitas from "./pages/Visitas";
 import AdminPro from "./pages/AdminPro";
 import { getSession } from "./services/api";
@@ -48,6 +50,22 @@ const router = createBrowserRouter([
     element: (
       <Protected modules={["asistencia", "adminpro"]}>
         <Asistencia />
+      </Protected>
+    ),
+  },
+  {
+    path: "/empleados",
+    element: (
+      <Protected modules={["asistencia", "adminpro"]}>
+        <Empleados />
+      </Protected>
+    ),
+  },
+  {
+    path: "/justificaciones",
+    element: (
+      <Protected modules={["asistencia", "adminpro"]}>
+        <Justificaciones />
       </Protected>
     ),
   },

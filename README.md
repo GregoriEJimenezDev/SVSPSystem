@@ -78,6 +78,12 @@ arrastrar `.xls` o `.xlsx`.
   (`GET /api/v1/employees/?department=`) y a registros/reporte
   (`GET /api/v1/attendance/?department=`, `POST .../report-qr`,
   `POST .../report-docx`).
+- **Páginas del módulo**: Asistencia (importar, registros, QR y Word),
+  Empleados (editar, filtrar, departamentos, fusionar duplicados) y
+  Justificaciones — cada una en el menú lateral.
+- **Duplicados**: `GET /api/v1/employees/duplicates` detecta mismo nombre
+  normalizado; `POST /api/v1/employees/merge` (`keep_id` + `duplicate_ids`)
+  mueve asistencias/justificaciones y desactiva el resto (nada se borra).
 - **Descargar Word**: botón junto al QR. `POST /api/v1/attendance/report-docx`
   con los mismos filtros devuelve `.docx` editable con columnas Empleado,
   Hora de entrada, Hora salida y Total horas trabajadas.
