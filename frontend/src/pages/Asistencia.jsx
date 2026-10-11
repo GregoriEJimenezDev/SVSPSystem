@@ -84,6 +84,7 @@ export default function Asistencia() {
       setMsg({
         type: "ok",
         text: `Importación completa: ${r.processed} procesados, ${r.created} empleados nuevos, ${r.updated} actualizados.` +
+          (r.departments_created ? ` ${r.departments_created} departamento(s) nuevo(s).` : "") +
           (r.errors && r.errors.length ? ` Errores: ${r.errors.length}.` : ""),
       });
       setFile(null);

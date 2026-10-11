@@ -35,6 +35,7 @@ jobs:
             xlrd \
             xlwt \
             python-docx \
+            reportlab \
             "qrcode[pil]" \
             python-multipart \
             "httpx==0.27.2" \
