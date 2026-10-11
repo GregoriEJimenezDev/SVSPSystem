@@ -53,6 +53,25 @@ async function handleDownloadQR(v) {
   }
 }
 
+function saveBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+async function handleDownloadPDF(v) {
+  try {
+    const { blob, filename } = await api.downloadGet(`/api/v1/visitors/${v.id}/pdf`);
+    saveBlob(blob, filename);
+    setMsg({ type: "ok", text: `Ficha PDF descargada: ${filename}` });
+  } catch (err) {
+    setMsg({ type: "error", text: err.message });
+  }
+}
+
 async function handleQR(id) {
   try {
     const r = await api.get(`/api/v1/visitors/${id}/qr`);
@@ -145,6 +164,7 @@ async function handleQR(id) {
                   <td style={{ display: "flex", gap: 8 }}>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleQR(v.id)}>QR</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleDownloadQR(v)}>Descargar</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleDownloadPDF(v)}>PDF</button>
                     {!v.is_verified && (
                       <button className="btn btn-gold btn-sm" onClick={() => handleVerify(v.id)}>Verificar</button>
                     )}
@@ -170,6 +190,10 @@ async function handleQR(id) {
             <button className="btn btn-gold" style={{ marginTop: 12 }}
               onClick={() => downloadQR(qr.qr_base64, `${qr.visitor.first_name} ${qr.visitor.last_name}`)}>
               <Icon name="download" size={16} /> Descargar QR
+            </button>
+            <button className="btn btn-ghost" style={{ marginTop: 12, marginLeft: 8 }}
+              onClick={() => { handleDownloadPDF(qr.visitor); setQr(null); }}>
+              Ficha PDF
             </button>
             <p style={{ fontSize: 13, color: "#8a8a8a" }}>Al escanear se muestra la ficha sin necesidad de login.</p>
             <button className="btn btn-ghost" onClick={() => setQr(null)} style={{ marginTop: 12 }}>Cerrar</button>

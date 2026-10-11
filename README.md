@@ -63,8 +63,9 @@ El endpoint `POST /api/v1/attendance/import-excel` acepta **`.xls` y `.xlsx`**:
   `Off-duty`); cada fila crea/actualiza la asistencia en **su fecha**
   (no en la fecha de hoy) y actualiza el departamento del empleado.
 
-Los empleados inexistentes se crean automáticamente. El frontend acepta
-arrastrar `.xls` o `.xlsx`.
+Los empleados inexistentes se crean automáticamente, junto con los
+**departamentos nuevos** vistos en el reporte (sin duplicar). El frontend
+acepta arrastrar `.xls` o `.xlsx`.
 
 ### 4. Empleados, departamentos y reporte Word
 

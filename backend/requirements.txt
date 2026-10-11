@@ -10,6 +10,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 openpyxl
 xlrd  # lectura de .xls (Excel 97-2003, p. ej. reportes ZKTeco StandardReport)
+python-docx  # reporte Word editable (.docx)
 pydantic-settings
 pydantic
 

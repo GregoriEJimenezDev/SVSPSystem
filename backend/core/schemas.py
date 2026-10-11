@@ -228,6 +228,7 @@ class ExcelImportResult(BaseModel):
     created: int
     updated: int
     errors: List[str] = Field(default_factory=list)
+    departments_created: int = 0
 
 
 # Statistics schemas

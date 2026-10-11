@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from core.database import get_db
-from core.models import Employee, Attendance, Justification, User
+from core.models import Employee, Attendance, Justification, User, Department
 from core.schemas import (
     AttendanceResponse,
     AttendanceCreate,
@@ -273,6 +273,7 @@ def import_excel(
     created = 0
     updated = 0
     errors = []
+    seen_departments: set[str] = set()
 
     for row_idx, raw_row in enumerate(data_rows, start=2):
         processed += 1
@@ -319,6 +320,10 @@ def import_excel(
                 if departamento and employee.department != departamento:
                     employee.department = departamento
                 updated += 1
+
+            # Registrar departamento visto (se crean al final del import)
+            if departamento:
+                seen_departments.add(departamento)
 
             # Parsear horas (formato time, datetime o string)
             check_in = _parse_time(hora_entrada)
@@ -369,11 +374,25 @@ def import_excel(
             errors.append(f"Fila {row_idx}: {str(e)}")
             continue
 
+    # Crear automáticamente los departamentos vistos en el reporte
+    # (idempotente: no duplica existentes, insensible a mayúsculas)
+    departments_created = 0
+    for name in sorted(seen_departments):
+        exists = (
+            db.query(Department).filter(Department.name.ilike(name)).first()
+        )
+        if not exists:
+            db.add(Department(name=name, is_active=True))
+            departments_created += 1
+    if departments_created:
+        db.commit()
+
     result = ExcelImportResult(
         processed=processed,
         created=created,
         updated=updated,
         errors=errors[:50],  # Limit error list
+        departments_created=departments_created,
     )
 
     # Log de auditoría
@@ -387,6 +406,7 @@ def import_excel(
             "processed": processed,
             "created": created,
             "errors_count": len(errors),
+            "departments_created": departments_created,
         },
         request=None,
     )

@@ -44,6 +44,31 @@ async function request(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function downloadResponse(res, path) {
+  if (res.status === 401) {
+    localStorage.removeItem("user_token");
+    localStorage.removeItem("user_modules");
+    localStorage.removeItem("user_email");
+    window.location.href = "/login.html";
+    throw new Error("Sesión vencida");
+  }
+  if (!res.ok) {
+    let detail = "Error " + res.status;
+    try {
+      const data = await res.json();
+      detail = data.detail || detail;
+    } catch (e) {
+      /* noop */
+    }
+    throw new Error(detail);
+  }
+  const blob = await res.blob();
+  const fallback = path.includes("visitors") ? "visita.pdf" : "reporte-asistencia.docx";
+  const disp = res.headers.get("Content-Disposition") || "";
+  const m = /filename=([^;]+)/.exec(disp);
+  return { blob, filename: (m ? m[1].trim().replace(/"/g, "") : fallback) };
+}
+
 export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: "POST", body }),
@@ -60,28 +85,11 @@ export const api = {
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(body || {}),
     });
-    if (res.status === 401) {
-      localStorage.removeItem("user_token");
-      localStorage.removeItem("user_modules");
-      localStorage.removeItem("user_email");
-      window.location.href = "/login.html";
-      throw new Error("Sesión vencida");
-    }
-    if (!res.ok) {
-      let detail = "Error " + res.status;
-      try {
-        const data = await res.json();
-        detail = data.detail || detail;
-      } catch (e) {
-        /* noop */
-      }
-      throw new Error(detail);
-    }
-    const blob = await res.blob();
-    const fallback = "reporte-asistencia.docx";
-    const disp = res.headers.get("Content-Disposition") || "";
-    const m = /filename=([^;]+)/.exec(disp);
-    return { blob, filename: (m ? m[1].trim().replace(/"/g, "") : fallback) };
+    return downloadResponse(res, path);
+  },
+  downloadGet: async (path) => {
+    const res = await fetch(API + path, { headers: { ...authHeaders() } });
+    return downloadResponse(res, path);
   },
 };
 

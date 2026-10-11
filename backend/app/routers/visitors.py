@@ -191,6 +191,81 @@ def get_visitor_qr(
     )
 
 
+@router.get("/{visitor_id}/pdf")
+def download_visitor_pdf(
+    visitor_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_module("visitas")),
+):
+    """Descargar ficha del visitante en PDF: QR + nombre, cédula,
+    institución de origen, persona visitada y justificación."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    from fastapi.responses import StreamingResponse
+
+    visitor = db.query(Visitor).filter(Visitor.id == visitor_id).first()
+    if not visitor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Visitante no encontrado"
+        )
+
+    url, _ = build_visitor_qr(visitor)
+    qr_img = qrcode.make(url)
+    qr_buf = BytesIO()
+    qr_img.save(qr_buf, format="PNG")
+    qr_buf.seek(0)
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter,
+                            title=f"Ficha de visitante - {visitor.first_name} {visitor.last_name}")
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph("SVSP - Ficha de Visitante", styles["Title"]),
+        Spacer(1, 6 * mm),
+        Image(qr_buf, width=55 * mm, height=55 * mm),
+        Spacer(1, 6 * mm),
+    ]
+    estado = "VERIFICADO" if visitor.is_verified else "REGISTRADO"
+    fecha = visitor.created_at.strftime("%d/%m/%Y %H:%M") if visitor.created_at else "-"
+    rows = [
+        ("Nombre", f"{visitor.first_name} {visitor.last_name}"),
+        ("Cédula", visitor.document_number or "-"),
+        ("De dónde viene", visitor.institution or "-"),
+        ("A quién visita", visitor.visited_person or "-"),
+        ("Justificación", visitor.visit_justification or "-"),
+        ("Estado", estado),
+        ("Registro", fecha),
+    ]
+    table = Table([["Campo", "Valor"]] + rows, colWidths=[45 * mm, 110 * mm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#101828")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#9aa3b2")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f4f6fb")]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 6 * mm))
+    story.append(Paragraph(
+        "Escanee el código QR para verificar esta ficha en línea.", styles["Normal"]))
+    doc.build(story)
+    buf.seek(0)
+
+    filename = f"visita-{visitor.document_number or visitor.id}.pdf".replace(" ", "_")
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/public/{visitor_id}", response_class=HTMLResponse)
 def public_visitor_card(visitor_id: int, db: Session = Depends(get_db)):
     """Ficha pública del visitante (se abre al escanear el QR, sin login)."""
