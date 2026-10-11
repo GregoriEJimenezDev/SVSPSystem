@@ -35,7 +35,12 @@ def login(form_data: UserLogin, db: Session = Depends(get_db)):
             detail="Credenciales incorrectas",
         )
     access_token = auth.create_access_token(sub=user.email)
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = auth.create_access_token(sub=f"refresh:{user.email}")
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
 
 
 @router.get("/me", response_model=UserResponse)

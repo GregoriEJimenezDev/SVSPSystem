@@ -10,10 +10,15 @@ def get_db():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     
+    connect_args = (
+        {"check_same_thread": False}
+        if settings.database_url.startswith("sqlite")
+        else {}
+    )
     engine = create_engine(
-        f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
-        f"@{settings.POSTGRES_SERVER}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}",
+        settings.database_url,
         pool_pre_ping=True,
+        connect_args=connect_args,
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
@@ -30,14 +35,14 @@ def get_current_active_user(
 ):
     # In production, decode JWT token from Authorization header
     # For now, return a user by email for development
-    user = db.query(User).filter(User.email == "admin@svsp.local").first()
+    user = db.query(User).filter(User.email == "admin@svsp.com").first()
     if not user:
         # Create a default user if none exists
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         hashed = pwd_context.hash("admin123")
         user = User(
-            email="admin@svsp.local",
+            email="admin@svsp.com",
             full_name="Administrador",
             password_hash=hashed,
             is_active=True,

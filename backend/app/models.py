@@ -31,6 +31,9 @@ class Permission(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(Text, nullable=True)
+    roles = relationship(
+        "Role", secondary=roles_permissions, back_populates="permissions"
+    )
 
 
 class Role(Base):

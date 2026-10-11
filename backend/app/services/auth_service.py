@@ -14,19 +14,43 @@ class AuthService:
         self.db = db_repo
         self.pwd = pwd_context
 
-    def authenticate(self, form_data: dict) -> Optional[dict]:
-        user = self.db.query(type('User', (), {'email': form_data.get('email', '')})).first()
-        # Simplified - in real usage would query properly
+    def _as_dict(self, form_data) -> dict:
+        if hasattr(form_data, "model_dump"):
+            return form_data.model_dump()
+        if hasattr(form_data, "dict"):
+            return form_data.dict()
+        return dict(form_data)
+
+    def create(self, user_data):
+        """Create a new user. Raises 400 if the email is already registered."""
+        data = self._as_dict(user_data)
+        existing = self.db.get_by_email(data.get("email", ""))
+        if existing:
+            raise HTTPException(
+                status_code=400, detail="El correo ya está registrado"
+            )
+        return self.db.create(data)
+
+    def authenticate(self, form_data) -> Optional[object]:
+        data = self._as_dict(form_data)
+        email = data.get("email", "")
+        password = data.get("password", "")
+        if not email or not password:
+            return None
+        user = self.db.get_by_email(email)
         if not user:
             return None
-        if not self.pwd.verify(form_data.get('password', ''), user.password_hash):
+        if not self.pwd.verify(password, user.password_hash):
             return None
-        if not getattr(user, 'is_active', True):
+        if not getattr(user, "is_active", True):
             return None
         return user
 
-    def create_access_token(self, subject: str) -> str:
+    def create_access_token(self, subject: str = None, sub: str = None) -> str:
         import time
+        subject = subject or sub
+        if not subject:
+            raise ValueError("subject (sub) is required")
         issued_at = time.time()
         expires = issued_at + (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
         token = jwt.encode(
@@ -47,7 +71,6 @@ class AuthService:
             return None
 
 
-def get_auth_service(db) -> AuthService:
-    from app.dependencies import get_db
+def get_auth_service(db: Session) -> AuthService:
     from app.repositories.user_repository import UserRepository
-    return AuthService(get_db())
+    return AuthService(UserRepository(db))

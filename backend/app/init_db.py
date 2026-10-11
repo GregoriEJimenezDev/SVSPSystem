@@ -2,10 +2,15 @@ from sqlalchemy import create_engine
 from app.config import settings
 from app.models import Base
 
+connect_args = (
+    {"check_same_thread": False}
+    if settings.database_url.startswith("sqlite")
+    else {}
+)
 engine = create_engine(
-    f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
-    f"@{settings.POSTGRES_SERVER}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}",
+    settings.database_url,
     pool_pre_ping=True,
+    connect_args=connect_args,
 )
 
 def create_tables():

@@ -21,6 +21,17 @@ class Settings:
     BACKEND_CORS_ORIGINS: list = [
         o.strip() for o in os.getenv("BACKEND_CORS_ORIGINS", "http://localhost:3000").split(",")
     ]
+    # If DATABASE_URL is set (e.g. sqlite:///./svsp.db for local dev), it wins.
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
+    @property
+    def database_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     class Config:
         env_file = ".env"
