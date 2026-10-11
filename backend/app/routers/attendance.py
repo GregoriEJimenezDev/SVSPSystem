@@ -421,32 +421,70 @@ def list_attendances(
     return attendances
 
 
+# Hora límite de llegada: entradas posteriores cuentan como tardanza.
+LATE_AFTER = time(8, 0)
+
+
+def _day_presence(records, ref_day, total_active: int):
+    """Presentes/ausentes/tardanzas coherentes para un día.
+
+    Presentes = empleados DISTINTOS con hora de entrada (nunca supera el
+    total de empleados). Ausentes = total − presentes (mínimo 0).
+    """
+    present_ids = {
+        r.employee_id for r in records if r.date == ref_day and r.check_in is not None
+    }
+    late_ids = {
+        r.employee_id
+        for r in records
+        if r.date == ref_day and r.check_in is not None and r.check_in > LATE_AFTER
+    }
+    present = len(present_ids)
+    absent = max(0, total_active - present)
+    return present, absent, len(late_ids)
+
+
 @router.get("/stats", response_model=AttendanceStats)
 def attendance_stats(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    employee_id: Optional[int] = None,
+    department: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
-    """Estadísticas de asistencia"""
-    query = db.query(Attendance)
+    """Estadísticas de asistencia.
 
-    if start_date:
-        query = query.filter(Attendance.date >= start_date)
-    if end_date:
-        query = query.filter(Attendance.date <= end_date)
+    Reglas coherentes (presentes nunca supera el total de empleados):
+    - Se calculan sobre un DÍA de referencia: end_date, o start_date,
+      o hoy si no hay rango.
+    - Presentes = empleados DISTINTOS con hora de entrada ese día.
+    - Ausentes = empleados activos − presentes (nunca negativo).
+    - Tardanzas = presentes con entrada posterior a las 08:00.
+    - Respeta los filtros de empleado y departamento.
+    """
+    filters = {
+        "employee_id": employee_id,
+        "department": department,
+        "start_date": str(start_date) if start_date else None,
+        "end_date": str(end_date) if end_date else None,
+    }
+    records = _apply_report_filters(db.query(Attendance), filters, db).all()
+    ref_day = end_date or start_date or date.today()
 
-    records = query.all()
-    total = len(records)
+    emp_query = db.query(Employee).filter(Employee.is_active == True)  # noqa: E712
+    if department:
+        emp_query = emp_query.filter(Employee.department.ilike(f"%{department.strip()}%"))
+    if employee_id:
+        emp_query = emp_query.filter(Employee.id == employee_id)
+    total_employees = emp_query.count()
 
-    # total_hours se guarda como texto: contar presente si hay hora de entrada
-    present = sum(1 for r in records if r.check_in is not None)
-    absent = total - present
+    present, absent, late = _day_presence(records, ref_day, total_employees)
 
-    # Promedio de horas (parsear el texto a número cuando sea posible)
+    # Promedio de horas del día de referencia (total_hours se guarda como texto)
     hours = []
     for r in records:
-        if r.total_hours is None:
+        if r.date != ref_day or r.total_hours is None:
             continue
         try:
             hours.append(float(str(r.total_hours).strip()))
@@ -454,13 +492,11 @@ def attendance_stats(
             continue
     avg_hours = round(sum(hours) / len(hours), 2) if hours else 0.0
 
-    total_employees = db.query(Employee).filter(Employee.is_active == True).count()
-
     return AttendanceStats(
         total_employees=total_employees,
         present_today=present,
         absent_today=absent,
-        late_today=0,
+        late_today=late,
         total_hours=avg_hours,
     )
 
@@ -472,7 +508,12 @@ def attendance_chart_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
-    """Datos para gráfico de distribución de asistencia"""
+    """Datos para gráfico de distribución de asistencia.
+
+    Misma lógica coherente que /stats: conteo por empleados distintos
+    del día de referencia (último con datos en el rango, o el fin del
+    rango, o hoy).
+    """
     query = db.query(Attendance)
 
     if start_date:
@@ -481,16 +522,18 @@ def attendance_chart_data(
         query = query.filter(Attendance.date <= end_date)
 
     records = query.all()
-    present_count = sum(1 for r in records if r.check_in is not None)
-    absent_count = len(records) - present_count
-    late_count = 0
-
-    # Retornar fecha del último registro para el gráfico (hoy si no hay datos)
     last_record = query.order_by(Attendance.date.desc()).first()
     if last_record is not None and last_record.date is not None:
         chart_date = last_record.date
+    elif end_date:
+        chart_date = end_date
+    elif start_date:
+        chart_date = start_date
     else:
         chart_date = date.today()
+
+    total_active = db.query(Employee).filter(Employee.is_active == True).count()  # noqa: E712
+    present_count, absent_count, late_count = _day_presence(records, chart_date, total_active)
 
     return AttendanceChartData(
         date=chart_date, present=present_count, absent=absent_count, late=late_count
