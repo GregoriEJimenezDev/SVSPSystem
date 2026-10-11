@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { api } from "../services/api";
+import Icon from "../components/icons";
 
 function downloadQR(qrBase64, name) {
   const link = document.createElement("a");
@@ -11,7 +12,7 @@ function downloadQR(qrBase64, name) {
 
 export default function Visitas() {
   const [rows, setRows] = useState([]);
-  const [form, setForm] = useState({ first_name: "", last_name: "", document_number: "" });
+  const [form, setForm] = useState({ first_name: "", last_name: "", document_number: "", visited_person: "", institution: "", visit_justification: "" });
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState({ type: "", text: "" });
   const [qr, setQr] = useState(null);
@@ -35,7 +36,7 @@ export default function Visitas() {
       const r = await api.post("/api/v1/visitors/", form);
       setQr({ ...r, url: null });
       setMsg({ type: "ok", text: `Visitante ${r.visitor.first_name} ${r.visitor.last_name} registrado.` });
-      setForm({ first_name: "", last_name: "", document_number: "" });
+      setForm({ first_name: "", last_name: "", document_number: "", visited_person: "", institution: "", visit_justification: "" });
       load();
     } catch (err) {
       setMsg({ type: "error", text: err.message });
@@ -85,7 +86,7 @@ async function handleQR(id) {
       {msg.text && <div className={`alert alert-${msg.type === "ok" ? "ok" : "error"}`}>{msg.text}</div>}
 
       <div className="card">
-        <h2>➕ Registrar visitante</h2>
+        <h2><Icon name="plus" size={20} /> Registrar visitante</h2>
         <form onSubmit={handleRegister}>
           <div className="form-grid">
             <div className="field">
@@ -100,6 +101,18 @@ async function handleQR(id) {
               <label>Cédula</label>
               <input className="input" required value={form.document_number} onChange={(e) => setForm({ ...form, document_number: e.target.value })} placeholder="Número de cédula" />
             </div>
+            <div className="field">
+              <label>¿A quién visita?</label>
+              <input className="input" value={form.visited_person} onChange={(e) => setForm({ ...form, visited_person: e.target.value })} placeholder="Persona visitada" />
+            </div>
+            <div className="field">
+              <label>Institución de origen</label>
+              <input className="input" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })} placeholder="¿De qué institución viene?" />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label>Justificación de la visita</label>
+              <input className="input" value={form.visit_justification} onChange={(e) => setForm({ ...form, visit_justification: e.target.value })} placeholder="Motivo de la visita" />
+            </div>
           </div>
           <button className="btn btn-gold" disabled={loading}>
             {loading ? "Registrando..." : "Registrar y generar QR"}
@@ -108,7 +121,7 @@ async function handleQR(id) {
       </div>
 
       <div className="card">
-        <h2>📋 Historial de visitantes</h2>
+        <h2><Icon name="clipboard" size={20} /> Historial de visitantes</h2>
         <div className="toolbar">
           <div className="field" style={{ minWidth: 240 }}>
             <label>Buscar por nombre o cédula</label>
@@ -117,12 +130,13 @@ async function handleQR(id) {
         </div>
         <div className="table-wrap">
           <table className="data">
-            <thead><tr><th>Nombre</th><th>Cédula</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Cédula</th><th>Visita a</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {filtered.map((v) => (
                 <tr key={v.id}>
                   <td>{v.first_name} {v.last_name}</td>
                   <td>{v.document_number}</td>
+                  <td>{v.visited_person || "—"}{v.institution ? ` (${v.institution})` : ""}</td>
                   <td>
                     {v.is_verified
                       ? <span className="badge badge-green">Verificado</span>
@@ -138,7 +152,7 @@ async function handleQR(id) {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan="4" style={{ color: "#8a8a8a" }}>Sin visitantes registrados.</td></tr>
+                <tr><td colSpan="5" style={{ color: "#8a8a8a" }}>Sin visitantes registrados.</td></tr>
               )}
             </tbody>
           </table>
@@ -148,14 +162,14 @@ async function handleQR(id) {
       {qr && (
         <div className="modal-back" onClick={() => setQr(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>📱 QR del visitante</h2>
+            <h2><Icon name="qr" size={20} /> QR del visitante</h2>
             <p style={{ color: "#8a8a8a", marginTop: 8 }}>
               {qr.visitor.first_name} {qr.visitor.last_name} · {qr.visitor.document_number}
             </p>
             <img className="qr" src={"data:image/png;base64," + qr.qr_base64} alt="QR del visitante" />
             <button className="btn btn-gold" style={{ marginTop: 12 }}
               onClick={() => downloadQR(qr.qr_base64, `${qr.visitor.first_name} ${qr.visitor.last_name}`)}>
-              📥 Descargar QR
+              <Icon name="download" size={16} /> Descargar QR
             </button>
             <p style={{ fontSize: 13, color: "#8a8a8a" }}>Al escanear se muestra la ficha sin necesidad de login.</p>
             <button className="btn btn-ghost" onClick={() => setQr(null)} style={{ marginTop: 12 }}>Cerrar</button>

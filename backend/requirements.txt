@@ -9,6 +9,7 @@ psycopg[binary]  # driver requerido por SQLAlchemy 2.x para URLs postgresql://
 python-jose[cryptography]
 passlib[bcrypt]
 openpyxl
+xlrd  # lectura de .xls (Excel 97-2003, p. ej. reportes ZKTeco StandardReport)
 pydantic-settings
 pydantic
 

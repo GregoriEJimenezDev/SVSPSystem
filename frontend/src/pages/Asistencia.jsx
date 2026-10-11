@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Layout from "../components/Layout";
 import { api } from "../services/api";
+import Icon from "../components/icons";
 
 function Donut({ present, absent, late }) {
   const total = present + absent + late || 1;
@@ -177,11 +178,11 @@ export default function Asistencia() {
 
       <div className={`card ${dragOver ? "drop-active" : ""}`}
           onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
-        <h2>📥 Importar Excel del ponchador</h2>
+        <h2><Icon name="upload" size={20} /> Importar Excel del ponchador</h2>
         <form onSubmit={handleImport} className="toolbar">
           <div className="field">
-            <label>Archivo .xlsx</label>
-            <input className="input" type="file"
+            <label>Archivo .xls o .xlsx</label>
+            <input className="input" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(e) => setFile(e.target.files[0])}
               style={{ display: "none" }} id="fileInput" />
             <label htmlFor="fileInput" className="drop-zone-label">
@@ -193,12 +194,12 @@ export default function Asistencia() {
           </button>
         </form>
         <p style={{ fontSize: 13, color: "#8a8a8a" }}>
-          Columnas esperadas (por encabezado, en cualquier orden): Empleado, Hora de entrada, Hora de salida. Los empleados nuevos se crean automáticamente.
+          Formatos aceptados: planilla simple (Empleado, Hora de entrada, Hora de salida) o reporte ZKTeco StandardReport (.xls). Los empleados nuevos se crean automáticamente.
         </p>
       </div>
 
       <div className="card">
-        <h2>📊 Distribución de asistencia</h2>
+        <h2><Icon name="chart" size={20} /> Distribución de asistencia</h2>
         {chart ? (
           <Donut present={chart.present} absent={chart.absent} late={chart.late} />
         ) : (
@@ -207,7 +208,7 @@ export default function Asistencia() {
       </div>
 
       <div className="card">
-        <h2>🔎 Registros y QR del reporte</h2>
+        <h2><Icon name="search" size={20} /> Registros y QR del reporte</h2>
         <div className="toolbar">
           <div className="field">
             <label>Empleado</label>
@@ -227,7 +228,7 @@ export default function Asistencia() {
             <input className="input" type="date" value={filters.end_date} onChange={(e) => setFilters({ ...filters, end_date: e.target.value })} />
           </div>
           <button className="btn btn-ghost" onClick={loadAll}>Filtrar</button>
-          <button className="btn btn-gold" onClick={handleQR} disabled={loading}>📱 QR del reporte</button>
+          <button className="btn btn-gold" onClick={handleQR} disabled={loading}><Icon name="qr" size={16} /> QR del reporte</button>
         </div>
         <div className="table-wrap">
           <table className="data">
@@ -257,7 +258,7 @@ export default function Asistencia() {
       </div>
 
       <div className="card">
-        <h2>📝 Justificaciones por rango de fechas</h2>
+        <h2><Icon name="memo" size={20} /> Justificaciones por rango de fechas</h2>
         <form onSubmit={handleJustify}>
           <div className="form-grid">
             <div className="field">
@@ -316,7 +317,7 @@ export default function Asistencia() {
       {qr && (
         <div className="modal-back" onClick={() => setQr(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>📱 Escanea para ver el reporte</h2>
+            <h2><Icon name="qr" size={20} /> Escanea para ver el reporte</h2>
             <img className="qr" src={"data:image/png;base64," + qr.qr_base64} alt="QR del reporte" />
             <p className="url">{qr.url}</p>
             <button className="btn btn-gold" onClick={() => setQr(null)}>Cerrar</button>

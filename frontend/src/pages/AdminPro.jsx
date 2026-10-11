@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { api } from "../services/api";
+import Icon from "../components/icons";
 
 const ALL_MODULES = [
   { key: "asistencia", label: "Asistencia" },
@@ -16,6 +17,8 @@ export default function AdminPro() {
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(false);
+  const [pwUser, setPwUser] = useState(null);
+  const [newPw, setNewPw] = useState("");
 
   function load() {
     api
@@ -73,6 +76,25 @@ export default function AdminPro() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function handlePasswordChange(e) {
+    e.preventDefault();
+    if (newPw.length < 8) {
+      setMsg({ type: "error", text: "La nueva contraseña debe tener al menos 8 caracteres." });
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.put(`/api/v1/adminpro/users/${pwUser.id}/password`, { new_password: newPw });
+      setMsg({ type: "ok", text: `Contraseña actualizada para ${pwUser.email}.` });
+      setPwUser(null);
+      setNewPw("");
+      load();
+    } catch (err) {
+      setMsg({ type: "error", text: err.message });
+    }
+    setLoading(false);
+  }
+
   async function handleToggleActive(u) {
     try {
       await api.put(`/api/v1/adminpro/users/${u.id}`, { is_active: !u.is_active });
@@ -88,7 +110,7 @@ export default function AdminPro() {
       {msg.text && <div className={`alert alert-${msg.type === "ok" ? "ok" : "error"}`}>{msg.text}</div>}
 
       <div className="card">
-        <h2>{editingId ? "✏️ Editar usuario" : "➕ Crear usuario"}</h2>
+        <h2>{editingId ? (<><Icon name="pencil" size={20} /> Editar usuario</>) : (<><Icon name="plus" size={20} /> Crear usuario</>)}</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field">
@@ -137,7 +159,7 @@ export default function AdminPro() {
       </div>
 
       <div className="card">
-        <h2>👥 Usuarios del sistema</h2>
+        <h2><Icon name="users" size={20} /> Usuarios del sistema</h2>
         <div className="table-wrap">
           <table className="data">
             <thead><tr><th>Correo</th><th>Nombre</th><th>Módulos</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -157,6 +179,9 @@ export default function AdminPro() {
                       : <span className="badge badge-red">Inactivo</span>}
                   </td>
                   <td style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setPwUser(u); setNewPw(""); setMsg({ type: "", text: "" }); }}>
+                      <Icon name="key" size={14} /> Clave
+                    </button>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(u)}>Editar</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleToggleActive(u)}>
                       {u.is_active ? "Inhabilitar" : "Rehabilitar"}
@@ -171,6 +196,25 @@ export default function AdminPro() {
           </table>
         </div>
       </div>
+
+      {pwUser && (
+        <div className="card">
+          <h2><Icon name="key" size={20} /> Cambiar contraseña</h2>
+          <p style={{ color: "#8a8a8a", marginBottom: 12 }}>
+            Usuario: <b>{pwUser.email}</b>. La clave anterior dejará de funcionar de inmediato.
+          </p>
+          <form onSubmit={handlePasswordChange} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input className="input" type="password" required minLength={8} style={{ maxWidth: 280 }}
+              value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Nueva contraseña (mín. 8)" />
+            <button className="btn btn-gold" disabled={loading}>
+              {loading ? "Guardando..." : "Guardar clave"}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setPwUser(null); setNewPw(""); }}>
+              Cancelar
+            </button>
+          </form>
+        </div>
+      )}
     </Layout>
   );
 }

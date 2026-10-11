@@ -52,6 +52,20 @@ npm install
 npm run dev   # http://localhost:5173 — el proxy /api reenvía al backend :8000
 ```
 
+### 3. Importar Excel del ponchador
+
+El endpoint `POST /api/v1/attendance/import-excel` acepta **`.xls` y `.xlsx`**:
+
+- Planilla simple con columnas `Empleado`, `Hora_entrada`, `Hora_salida`
+  (por encabezado, en cualquier orden).
+- Reporte **ZKTeco StandardReport (`.xls`)**: se detecta automáticamente la
+  hoja de registros por día (`Name`, `Department`, `Date`, `On-duty`,
+  `Off-duty`); cada fila crea/actualiza la asistencia en **su fecha**
+  (no en la fecha de hoy) y actualiza el departamento del empleado.
+
+Los empleados inexistentes se crean automáticamente. El frontend acepta
+arrastrar `.xls` o `.xlsx`.
+
 ## GitHub Codespaces
 
 - El navegador **no alcanza `localhost:8000`** (ese `localhost` es tu máquina).
