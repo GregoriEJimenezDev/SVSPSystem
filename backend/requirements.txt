@@ -5,6 +5,7 @@ sqlalchemy
 alembic
 asyncpg
 psycopg2-binary
+psycopg[binary]  # driver requerido por SQLAlchemy 2.x para URLs postgresql://
 python-jose[cryptography]
 passlib[bcrypt]
 openpyxl
