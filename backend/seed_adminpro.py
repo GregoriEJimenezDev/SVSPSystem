@@ -16,6 +16,14 @@ NUNCA hardcodees credenciales reales en este archivo: quedan en el historial de 
 
 import os
 import sys
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+except ImportError:
+    pass
 
 if not os.getenv("DATABASE_URL"):
     print(

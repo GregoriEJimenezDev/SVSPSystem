@@ -3,3 +3,14 @@
 
 # Ada Library Information
 *.ali
+
+# Environment / secrets - NEVER commit real credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.db
+*.sqlite
+*.sqlite3
