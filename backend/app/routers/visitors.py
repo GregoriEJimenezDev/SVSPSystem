@@ -45,8 +45,14 @@ def register_visitor(
     )
 
     if existing:
-        # Actualizar fecha de última visita
+        # Actualizar fecha de última visita y datos de la visita actual
         existing.verified_at = datetime.utcnow()
+        if visitor_data.visited_person is not None:
+            existing.visited_person = visitor_data.visited_person
+        if visitor_data.institution is not None:
+            existing.institution = visitor_data.institution
+        if visitor_data.visit_justification is not None:
+            existing.visit_justification = visitor_data.visit_justification
         db.commit()
         db.refresh(existing)
 
@@ -74,6 +80,9 @@ def register_visitor(
         first_name=visitor_data.first_name,
         last_name=visitor_data.last_name,
         document_number=visitor_data.document_number,
+        visited_person=visitor_data.visited_person,
+        institution=visitor_data.institution,
+        visit_justification=visitor_data.visit_justification,
         is_verified=False,
     )
 
@@ -193,6 +202,16 @@ def public_visitor_card(visitor_id: int, db: Session = Depends(get_db)):
     estado = "VERIFICADO" if visitor.is_verified else "REGISTRADO"
     color = "#1e7e34" if visitor.is_verified else "#B8912F"
     fecha = visitor.created_at.strftime("%d/%m/%Y %H:%M") if visitor.created_at else "-"
+    visita_a = (
+        f'<div class="row"><span>Visita a</span><span>{visitor.visited_person}</span></div>'
+        if visitor.visited_person
+        else ""
+    )
+    institucion = (
+        f'<div class="row"><span>Instituci&oacute;n</span><span>{visitor.institution}</span></div>'
+        if visitor.institution
+        else ""
+    )
     return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -208,6 +227,7 @@ h1{{font-size:24px;color:#2c2c2c;margin-bottom:4px}}p.sub{{color:#8a8a8a;font-si
 <h1>SVSP - Control de Visitas</h1><p class="sub">Verificación de identidad</p>
 <div class="badge">{estado}</div>
 <div class="row"><span>Nombre</span><span>{visitor.first_name} {visitor.last_name}</span></div>
-<div class="row"><span>Cédula</span><span>{visitor.document_number}</span></div>
+ <div class="row"><span>Cédula</span><span>{visitor.document_number}</span></div>
+{visita_a}{institucion}
 <div class="row"><span>Registro</span><span>{fecha}</span></div>
 </div></body></html>"""

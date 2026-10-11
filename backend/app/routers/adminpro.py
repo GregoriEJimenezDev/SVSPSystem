@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from core.database import get_db
 from core.models import User, Employee, Attendance, Justification, Visitor, AuditLog
-from core.schemas import UserCreate, UserUpdate, UserResponse, AuditLogResponse
+from core.schemas import UserCreate, UserUpdate, UserResponse, AuditLogResponse, PasswordChange
 from core.dependencies import get_current_active_user, require_adminpro, log_audit
 from core.security import hash_password
 from datetime import datetime
@@ -110,6 +110,43 @@ def update_user(
             "modules": user.modules,
             "is_active": user.is_active,
         },
+        request=request,
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/password", response_model=UserResponse)
+def change_user_password(
+    user_id: int,
+    data: PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_adminpro),
+    request: Request = None,
+):
+    """Cambiar la contraseña de un usuario (solo AdminPRO).
+
+    La clave nueva viaja solo en el cuerpo del request; nunca se devuelve
+    en la respuesta ni se guarda en la bitácora (solo se audita el hecho).
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado"
+        )
+
+    user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    db.refresh(user)
+
+    # Log de auditoría (sin la contraseña)
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="change_password",
+        entity_type="user",
+        entity_id=user.id,
+        details={"email": user.email, "changed_by": current_user.email},
         request=request,
     )
 

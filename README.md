@@ -36,6 +36,12 @@ python seed_adminpro.py
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+> En bases de datos **existentes** (Neon) hay que aplicar además las
+> migraciones `backend/migrations/NNN_*.sql` en orden, con
+> `psql "$DATABASE_URL" -f backend/migrations/NNN_*.sql` o pegando el
+> contenido en el editor SQL de Neon. Son idempotentes (`IF NOT EXISTS`).
+> En bases **nuevas** basta `create_all` + seed.
+
 Debe terminar con `Application startup complete.` Documentación: `http://localhost:8000/docs`.
 
 ### 2. Frontend (`frontend/`)
@@ -64,6 +70,16 @@ python seed_adminpro.py        # idempotente: no duplica si ya existe
 
 # Restablecer la clave de un usuario existente (la pide por argumento, no queda guardada)
 python reset_admin_password.py admin@svsp.local 'NuevaClave123!'
+```
+
+Un AdminPRO también puede cambiar la clave de cualquier usuario vía API
+(sin exponerla nunca en respuestas ni logs):
+
+```bash
+curl -X PUT http://localhost:8000/api/v1/adminpro/users/3/password \
+  -H "Authorization: Bearer <TOKEN_ADMINPRO>" \
+  -H "Content-Type: application/json" \
+  -d '{"new_password": "NuevaClave123!"}'
 ```
 
 ## Seguridad (obligatorio)
