@@ -248,7 +248,7 @@
                 if (result.ok) {
                     localStorage.setItem('user_token', result.data.access_token);
                     localStorage.setItem('user_modules', JSON.stringify(result.data.user.modules || []));
-                    window.location.href = 'http://localhost:5173/dashboard';
+                    window.location.href = '/dashboard';
                 } else {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Entrar al Sistema';

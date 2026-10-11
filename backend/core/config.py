@@ -1,6 +1,10 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# .env siempre junto a la carpeta backend/, sin importar desde dónde se ejecute
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -23,7 +27,7 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=False, extra="ignore"
+        env_file=_BACKEND_DIR / ".env", case_sensitive=False, extra="ignore"
     )
 
 
