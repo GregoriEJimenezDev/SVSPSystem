@@ -125,6 +125,8 @@ curl -X PUT http://localhost:8000/api/v1/adminpro/users/3/password \
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
+| `Presentes` mayor que empleados | Imposible por diseño: presentes = empleados distintos con entrada del día de referencia (fin del rango o hoy); tardanza = entrada después de las 08:00 | Si ves lo contrario, actualiza el backend (`git pull`) — se corrigió en `/stats` y `/chart-data` |
+|---|---|---|
 | `No se pudo conectar al servidor` | Backend apagado o puerto sin Forward | Arrancar Uvicorn; pestaña PORTS → Forwarded |
 | `HTTP 502` en `...-8000.app.github.dev` | Nada escucha en el 8000 | Arrancar backend; matar zombies (`ss -tlnp \| grep 8000`) |
 | `address already in use` | Proceso viejo (docker-proxy, Uvicorn zombie) | `docker ps` → `docker stop/rm`; o `kill -9 <PID>` |
