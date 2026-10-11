@@ -14,3 +14,14 @@
 *.db
 *.sqlite
 *.sqlite3
+
+# Dependencies / build outputs - never commit
+node_modules/
+dist/
+build/
+.vite/
+.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage

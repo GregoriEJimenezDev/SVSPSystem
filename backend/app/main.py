@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 from core.config import get_settings
 
@@ -9,11 +10,37 @@ from core.config import get_settings
 
 settings = get_settings()
 
+_UNCONFIGURED_DB_URL = "postgresql://user:password@localhost:5432/svsp"
+_UNCONFIGURED_SECRET = "change-me-in-production-min-32-chars"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Falla rapido con mensaje claro si falta configuracion esencial."""
+    if settings.database_url == _UNCONFIGURED_DB_URL:
+        raise RuntimeError(
+            "DATABASE_URL no configurado. Crea backend/.env con tu conexion "
+            "(ver backend/.env.example). La app se niega a arrancar sin base de datos."
+        )
+    if not settings.secret_key or settings.secret_key == _UNCONFIGURED_SECRET:
+        raise RuntimeError(
+            "SECRET_KEY no configurado o es el valor de ejemplo. Define uno propio "
+            "de al menos 32 caracteres en backend/.env (ver backend/.env.example)."
+        )
+    if len(settings.secret_key) < 32:
+        raise RuntimeError(
+            "SECRET_KEY demasiado corto (minimo 32 caracteres). "
+            "Genera uno con: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+        )
+    yield
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     debug=settings.debug,
     description="SVSP - Sistema Web de Gestión de Asistencia y Visitas",
+    lifespan=lifespan,
 )
 
 # CORS configurado explícitamente con orígenes desde settings.

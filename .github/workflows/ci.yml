@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "fix-*", "feat-*"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-tests:
+    name: Backend auth tests (SQLite, sin tocar Neon)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite:///./ci-test.db
+      SECRET_KEY: ci-only-secret-key-not-for-production-123456
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            "fastapi==0.109.2" \
+            sqlalchemy \
+            pydantic-settings \
+            bcrypt \
+            python-jose \
+            email-validator \
+            python-dotenv \
+            openpyxl \
+            "qrcode[pil]" \
+            python-multipart \
+            "httpx==0.27.2" \
+            pytest
+
+      - name: Run backend tests
+        run: python -m pytest backend/tests -q
