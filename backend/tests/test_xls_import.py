@@ -109,3 +109,48 @@ def test_import_zkteco_records_land_on_report_date():
     assert r.status_code == 200, r.text
     fechas = {a["date"][:10] for a in r.json()}
     assert "2026-10-02" in fechas
+
+
+def _xls_with_empty_row_bytes() -> bytes:
+    import xlwt
+    book = xlwt.Workbook()
+    sh = book.add_sheet("Exception Statistic Report")
+    for c, h in enumerate(["ID", "Name", "Department", "Date", "First time zone", "",
+                           "Second time zone", "", "Late"]):
+        sh.write(2, c, h)
+    for c, h in enumerate(["", "", "", "", "On-duty", "Off-duty", "On-duty", "Off-duty", ""]):
+        sh.write(3, c, h)
+    rows = [
+        # valida
+        ["1", "Con Marca", "Oficina", "2026-10-02", "08:05", "17:02", "", "", ""],
+        # vacia: nombre presente pero sin marcaciones -> debe omitirse
+        ["2", "Sin Marca", "Oficina", "2026-10-02", "", "", "", "", ""],
+    ]
+    for i, row in enumerate(rows):
+        for c, v in enumerate(row):
+            sh.write(4 + i, c, v)
+    buf = io.BytesIO()
+    book.save(buf)
+    return buf.getvalue()
+
+
+def test_import_skips_rows_without_marks():
+    h = _auth_headers()
+    r = client.post(
+        "/api/v1/attendance/import-excel",
+        files={"file": ("vacio.xls", _xls_with_empty_row_bytes(), "application/vnd.ms-excel")},
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["processed"] == 2, body
+    assert body["skipped"] == 1, body
+    # la fila vacia no crea empleado
+    from core.database import SessionLocal
+    from core.models import Employee
+    db = SessionLocal()
+    try:
+        assert db.query(Employee).filter(Employee.name == "Sin Marca").count() == 0
+        assert db.query(Employee).filter(Employee.name == "Con Marca").count() == 1
+    finally:
+        db.close()
