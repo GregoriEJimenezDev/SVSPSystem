@@ -120,6 +120,9 @@ class Visitor(Base):
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=False)
     document_number = Column(String(50), nullable=False, index=True)
+    visited_person = Column(String(255), nullable=True)  # ¿A quién visita?
+    institution = Column(String(255), nullable=True)  # ¿De qué institución viene?
+    visit_justification = Column(Text, nullable=True)  # Justificación de la visita
     is_verified = Column(Boolean, default=False)
     verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -34,6 +34,13 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class PasswordChange(BaseModel):
+    """Cambio de contraseña por AdminPRO. La clave viaja solo en el request;
+    nunca se devuelve ni se registra en logs."""
+
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
@@ -131,6 +138,9 @@ class VisitorBase(BaseModel):
     first_name: str = Field(min_length=1, max_length=255)
     last_name: str = Field(min_length=1, max_length=255)
     document_number: str = Field(min_length=1, max_length=50)
+    visited_person: Optional[str] = Field(default=None, max_length=255)
+    institution: Optional[str] = Field(default=None, max_length=255)
+    visit_justification: Optional[str] = None
 
 
 class VisitorCreate(VisitorBase):
