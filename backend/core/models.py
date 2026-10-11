@@ -31,6 +31,17 @@ class RoleEnum(str, enum.Enum):
     VISITAS = "Visitas"
 
 
+class Department(Base):
+    """Departamentos administrables (filtro de empleados y reportes)."""
+
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
 

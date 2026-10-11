@@ -77,6 +77,27 @@ class EmployeeResponse(EmployeeBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Department schemas
+class DepartmentBase(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class DepartmentCreate(DepartmentBase):
+    pass
+
+
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    is_active: Optional[bool] = None
+
+
+class DepartmentResponse(DepartmentBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Attendance schemas
 class AttendanceBase(BaseModel):
     employee_id: int

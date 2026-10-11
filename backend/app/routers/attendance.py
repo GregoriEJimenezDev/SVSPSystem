@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -396,6 +396,7 @@ def list_attendances(
     employee_id: Optional[int] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    department: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_module("asistencia")),
 ):
@@ -404,6 +405,11 @@ def list_attendances(
 
     if employee_id:
         query = query.filter(Attendance.employee_id == employee_id)
+
+    if department:
+        query = query.join(Employee, Attendance.employee_id == Employee.id).filter(
+            Employee.department.ilike(f"%{department.strip()}%")
+        )
 
     if start_date:
         query = query.filter(Attendance.date >= start_date)
@@ -541,6 +547,86 @@ def generate_report_qr(
     )
 
     return ReportQRResponse(qr_base64=qr_base64, url=url)
+
+
+@router.post("/report-docx")
+def download_report_docx(
+    payload: ReportQRRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_module("asistencia")),
+):
+    """Descargar reporte de asistencia en Word editable (.docx).
+
+    Usa los mismos filtros que el reporte QR: empleado, departamento,
+    rango de fechas. Columnas: Empleado, Hora de entrada, Hora salida,
+    Total horas trabajadas.
+    """
+    from docx import Document
+    from docx.shared import Pt
+
+    filters = {
+        "employee_id": payload.employee_id,
+        "department": payload.department,
+        "start_date": str(payload.start_date) if payload.start_date else None,
+        "end_date": str(payload.end_date) if payload.end_date else None,
+    }
+    query = db.query(Attendance)
+    records = _apply_report_filters(query, filters, db).all()
+
+    doc = Document()
+    style = doc.styles["Normal"]
+    style.font.size = Pt(11)
+    doc.add_heading("SVSP - Reporte de Asistencia", level=1)
+    periodo = f"{filters['start_date'] or '...'} al {filters['end_date'] or '...'}"
+    doc.add_paragraph(f"Periodo: {periodo}")
+    if filters["department"]:
+        doc.add_paragraph(f"Departamento: {filters['department']}")
+    doc.add_paragraph(
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}  |  "
+        f"Total registros: {len(records)}"
+    )
+
+    table = doc.add_table(rows=1, cols=4)
+    table.style = "Light Grid Accent 1"
+    hdr = table.rows[0].cells
+    hdr[0].text = "Empleado"
+    hdr[1].text = "Hora de entrada"
+    hdr[2].text = "Hora salida"
+    hdr[3].text = "Total horas trabajadas"
+    for record in records:
+        emp = db.query(Employee).filter(Employee.id == record.employee_id).first()
+        cells = table.add_row().cells
+        cells[0].text = emp.name if emp else f"#{record.employee_id}"
+        cells[1].text = (
+            record.check_in.strftime("%H:%M") if record.check_in else "-"
+        )
+        cells[2].text = (
+            record.check_out.strftime("%H:%M") if record.check_out else "-"
+        )
+        cells[3].text = str(record.total_hours) if record.total_hours else "-"
+
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="download_report_docx",
+        entity_type="attendance",
+        entity_id=0,
+        details={**filters, "total": len(records)},
+        request=None,
+    )
+
+    stamp = date.today().strftime("%Y%m%d")
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename=reporte-asistencia-{stamp}.docx"
+        },
+    )
 
 
 @router.get("/public-report", response_class=HTMLResponse)
