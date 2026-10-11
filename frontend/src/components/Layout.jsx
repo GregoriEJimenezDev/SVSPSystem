@@ -7,6 +7,8 @@ import "../styles/app.css";
 const MODULES = [
   { key: "panel", label: "Panel", path: "/dashboard", icon: "grid", always: true },
   { key: "asistencia", label: "Asistencia", path: "/asistencia", icon: "clock" },
+  { key: "asistencia", label: "Empleados", path: "/empleados", icon: "users" },
+  { key: "asistencia", label: "Justificaciones", path: "/justificaciones", icon: "memo" },
   { key: "visitas", label: "Visitas", path: "/visitas", icon: "userPlus" },
   { key: "adminpro", label: "AdminPRO", path: "/adminpro", icon: "shield" },
 ];

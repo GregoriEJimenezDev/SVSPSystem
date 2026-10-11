@@ -77,6 +77,33 @@ class EmployeeResponse(EmployeeBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class MergeRequest(BaseModel):
+    """Fusionar empleados duplicados: reasigna registros al conservado
+    y desactiva los demás. Los IDs duplicados no deben incluir al conservado."""
+
+    keep_id: int
+    duplicate_ids: List[int] = Field(min_length=1)
+
+
+class DuplicateMember(BaseModel):
+    id: int
+    name: str
+    department: Optional[str] = None
+    is_active: bool
+
+
+class DuplicateGroup(BaseModel):
+    key: str
+    employees: List[DuplicateMember]
+
+
+class MergeResult(BaseModel):
+    keep_id: int
+    deactivated_ids: List[int]
+    moved_attendances: int
+    moved_justifications: int
+
+
 # Department schemas
 class DepartmentBase(BaseModel):
     name: str = Field(min_length=1, max_length=255)

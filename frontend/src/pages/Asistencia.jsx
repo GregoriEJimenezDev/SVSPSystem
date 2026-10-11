@@ -35,17 +35,10 @@ export default function Asistencia() {
   const [employees, setEmployees] = useState([]);
   const [filters, setFilters] = useState({ employee_id: "", department: "", start_date: "", end_date: "" });
   const [departments, setDepartments] = useState([]);
-  const [empEditId, setEmpEditId] = useState(null);
-  const [empForm, setEmpForm] = useState({ name: "", department: "" });
-  const [newDept, setNewDept] = useState("");
-  const [deptEditId, setDeptEditId] = useState(null);
-  const [deptEditName, setDeptEditName] = useState("");
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(false);
   const [qr, setQr] = useState(null);
-  const [justifs, setJustifs] = useState([]);
-  const [justForm, setJustForm] = useState({ employee_id: "", type: "permiso", description: "", start_date: "", end_date: "" });
   const [dragOver, setDragOver] = useState(false);
 
   function loadAll() {
@@ -158,102 +151,6 @@ export default function Asistencia() {
     setLoading(false);
   }
 
-  async function handleEmpEditSave(id) {
-    if (!empForm.name.trim()) {
-      setMsg({ type: "error", text: "El nombre no puede estar vacío." });
-      return;
-    }
-    setLoading(true);
-    try {
-      await api.put(`/api/v1/employees/${id}`, {
-        name: empForm.name.trim(),
-        department: empForm.department.trim() || null,
-      });
-      setMsg({ type: "ok", text: "Empleado actualizado." });
-      setEmpEditId(null);
-      loadAll();
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
-    setLoading(false);
-  }
-
-  async function handleDeptCreate(e) {
-    e.preventDefault();
-    if (!newDept.trim()) return;
-    setLoading(true);
-    try {
-      await api.post("/api/v1/departments/", { name: newDept.trim() });
-      setMsg({ type: "ok", text: `Departamento "${newDept.trim()}" creado.` });
-      setNewDept("");
-      loadAll();
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
-    setLoading(false);
-  }
-
-  async function handleDeptRename(id) {
-    if (!deptEditName.trim()) {
-      setMsg({ type: "error", text: "El nombre no puede estar vacío." });
-      return;
-    }
-    setLoading(true);
-    try {
-      await api.put(`/api/v1/departments/${id}`, { name: deptEditName.trim() });
-      setMsg({ type: "ok", text: "Departamento actualizado." });
-      setDeptEditId(null);
-      loadAll();
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
-    setLoading(false);
-  }
-
-  async function handleDeptToggle(d) {
-    setLoading(true);
-    try {
-      if (d.is_active) {
-        await api.del(`/api/v1/departments/${d.id}`);
-        setMsg({ type: "ok", text: "Departamento inhabilitado." });
-      } else {
-        await api.put(`/api/v1/departments/${d.id}`, { is_active: true });
-        setMsg({ type: "ok", text: "Departamento rehabilitado." });
-      }
-      loadAll();
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
-    setLoading(false);
-  }
-
-  async function loadJustifs(employeeId) {
-    if (!employeeId) {
-      setJustifs([]);
-      return;
-    }
-    try {
-      setJustifs(await api.get(`/api/v1/justifications/employee/${employeeId}`));
-    } catch (e) {
-      setMsg({ type: "error", text: e.message });
-    }
-  }
-
-  async function handleJustify(e) {
-    e.preventDefault();
-    try {
-      await api.post("/api/v1/justifications/", {
-        ...justForm,
-        employee_id: Number(justForm.employee_id),
-      });
-      setMsg({ type: "ok", text: "Justificación registrada." });
-      setJustForm({ employee_id: "", type: "permiso", description: "", start_date: "", end_date: "" });
-      setJustifs([]);
-    } catch (err) {
-      setMsg({ type: "error", text: err.message });
-    }
-  }
-
   const kpis = stats
     ? [
         { label: "Total Empleados", value: stats.total_employees },
@@ -265,7 +162,7 @@ export default function Asistencia() {
     : [];
 
   return (
-    <Layout title="Módulo de Asistencia" desc="Importa el Excel del ponchador, consulta registros, justifica y genera el QR del reporte.">
+    <Layout title="Módulo de Asistencia" desc="Importa el Excel del ponchador, consulta registros y genera reportes.">
       {msg.text && <div className={`alert alert-${msg.type === "ok" ? "ok" : "error"}`}>{msg.text}</div>}
 
       <div className="grid kpis">
@@ -367,176 +264,6 @@ export default function Asistencia() {
           </table>
         </div>
       </div>
-
-      <div className="card">
-        <h2><Icon name="memo" size={20} /> Justificaciones por rango de fechas</h2>
-        <form onSubmit={handleJustify}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Empleado</label>
-              <select className="input" required value={justForm.employee_id}
-                onChange={(e) => { setJustForm({ ...justForm, employee_id: e.target.value }); loadJustifs(e.target.value); }}>
-                <option value="">Seleccionar...</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Tipo</label>
-              <select className="input" value={justForm.type} onChange={(e) => setJustForm({ ...justForm, type: e.target.value })}>
-                <option value="permiso">Permiso</option>
-                <option value="licencia_medica">Licencia médica</option>
-                <option value="vacaciones">Vacaciones</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Desde</label>
-              <input className="input" type="date" required value={justForm.start_date} onChange={(e) => setJustForm({ ...justForm, start_date: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>Hasta</label>
-              <input className="input" type="date" required value={justForm.end_date} onChange={(e) => setJustForm({ ...justForm, end_date: e.target.value })} />
-            </div>
-          </div>
-          <div className="form-grid">
-            <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label>Descripción</label>
-              <input className="input" value={justForm.description} onChange={(e) => setJustForm({ ...justForm, description: e.target.value })} placeholder="Motivo de la justificación" />
-            </div>
-          </div>
-          <button className="btn btn-gold">Guardar justificación</button>
-        </form>
-        {justifs.length > 0 && (
-          <div className="table-wrap" style={{ marginTop: 18 }}>
-            <table className="data">
-              <thead><tr><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead>
-              <tbody>
-                {justifs.map((j) => (
-                  <tr key={j.id}>
-                    <td>{j.type}</td><td>{j.start_date}</td><td>{j.end_date}</td>
-                    <td>{j.is_active ? <span className="badge badge-green">Vigente</span> : <span className="badge badge-gray">Anulada</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="card">
-        <h2><Icon name="users" size={20} /> Empleados</h2>
-        <div className="table-wrap">
-          <table className="data">
-            <thead><tr><th>Nombre</th><th>Departamento</th><th>Estado</th><th>Acciones</th></tr></thead>
-            <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
-                  <td>
-                    {empEditId === emp.id ? (
-                      <input className="input" value={empForm.name} onChange={(e) => setEmpForm({ ...empForm, name: e.target.value })} />
-                    ) : (
-                      emp.name
-                    )}
-                  </td>
-                  <td>
-                    {empEditId === emp.id ? (
-                      <input className="input" value={empForm.department} list="dept-list"
-                        onChange={(e) => setEmpForm({ ...empForm, department: e.target.value })} placeholder="Departamento" />
-                    ) : (
-                      emp.department || "—"
-                    )}
-                  </td>
-                  <td>
-                    {emp.is_active
-                      ? <span className="badge badge-green">Activo</span>
-                      : <span className="badge badge-gray">Inactivo</span>}
-                  </td>
-                  <td style={{ display: "flex", gap: 8 }}>
-                    {empEditId === emp.id ? (
-                      <React.Fragment>
-                        <button className="btn btn-gold btn-sm" disabled={loading} onClick={() => handleEmpEditSave(emp.id)}>Guardar</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEmpEditId(null)}>Cancelar</button>
-                      </React.Fragment>
-                    ) : (
-                      <button className="btn btn-ghost btn-sm" onClick={() => {
-                        setEmpEditId(emp.id);
-                        setEmpForm({ name: emp.name, department: emp.department || "" });
-                      }}>
-                        <Icon name="pencil" size={14} /> Editar
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {employees.length === 0 && (
-                <tr><td colSpan="4" style={{ color: "#8a8a8a" }}>Sin empleados. Importa el Excel del ponchador para comenzar.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <datalist id="dept-list">
-          {departments.map((d) => (
-            <option key={d.id} value={d.name} />
-          ))}
-        </datalist>
-      </div>
-
-      <div className="card">
-        <h2><Icon name="grid" size={20} /> Departamentos</h2>
-        <form onSubmit={handleDeptCreate} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-          <input className="input" value={newDept} onChange={(e) => setNewDept(e.target.value)}
-            placeholder="Nombre del departamento" style={{ maxWidth: 320 }} />
-          <button className="btn btn-gold" disabled={loading}>
-            <Icon name="plus" size={16} /> Crear
-          </button>
-        </form>
-        <div className="table-wrap">
-          <table className="data">
-            <thead><tr><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
-            <tbody>
-              {departments.map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    {deptEditId === d.id ? (
-                      <input className="input" value={deptEditName} onChange={(e) => setDeptEditName(e.target.value)} />
-                    ) : (
-                      d.name
-                    )}
-                  </td>
-                  <td>
-                    {d.is_active
-                      ? <span className="badge badge-green">Activo</span>
-                      : <span className="badge badge-gray">Inactivo</span>}
-                  </td>
-                  <td style={{ display: "flex", gap: 8 }}>
-                    {deptEditId === d.id ? (
-                      <React.Fragment>
-                        <button className="btn btn-gold btn-sm" disabled={loading} onClick={() => handleDeptRename(d.id)}>Guardar</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setDeptEditId(null)}>Cancelar</button>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        <button className="btn btn-ghost btn-sm" onClick={() => { setDeptEditId(d.id); setDeptEditName(d.name); }}>
-                          <Icon name="pencil" size={14} /> Renombrar
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDeptToggle(d)}>
-                          {d.is_active ? "Inhabilitar" : "Rehabilitar"}
-                        </button>
-                      </React.Fragment>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {departments.length === 0 && (
-                <tr><td colSpan="3" style={{ color: "#8a8a8a" }}>Sin departamentos. Crea el primero arriba.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {qr && (
         <div className="modal-back" onClick={() => setQr(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

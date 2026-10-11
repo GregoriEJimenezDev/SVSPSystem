@@ -15,6 +15,7 @@ from core.schemas import (
     ReportQRResponse,
 )
 from core.dependencies import require_module, log_audit
+from app.routers.employees import normalize_name
 from core.security import create_access_token, decode_token
 from core.config import get_settings
 import openpyxl
@@ -294,7 +295,9 @@ def import_excel(
                 errors.append(f"Fila {row_idx}: Nombre de empleado vacío")
                 continue
 
-            # Buscar o crear empleado
+            # Buscar o crear empleado (nombre normalizado: sin espacios extra,
+            # evita duplicados tipo "Juan  Pérez" vs "Juan Pérez")
+            empleado_nombre = normalize_name(empleado_nombre)
             employee = (
                 db.query(Employee)
                 .filter(Employee.name.ilike(empleado_nombre))
