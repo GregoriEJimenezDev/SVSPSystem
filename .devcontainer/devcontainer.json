@@ -1,0 +1,20 @@
+{
+  // Sin "image": conserva el entorno actual del Codespace.
+  // Solo automatiza puertos + arranque de backend y frontend.
+  "forwardPorts": [5173, 8000],
+  "portsAttributes": {
+    "5173": {
+      "label": "SVSP Frontend",
+      "visibility": "public",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "SVSP Backend API",
+      "visibility": "public",
+      "onAutoForward": "silent"
+    }
+  },
+  // Se ejecuta en cada arranque del Codespace: levanta todo solo.
+  // Idempotente: no duplica procesos si ya están corriendo.
+  "postStartCommand": "bash .devcontainer/start-all.sh"
+}

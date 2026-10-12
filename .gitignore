@@ -21,6 +21,7 @@ dist/
 build/
 .vite/
 .cache/
+.devcontainer/logs/
 __pycache__/
 *.pyc
 .pytest_cache/
