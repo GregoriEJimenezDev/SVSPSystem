@@ -91,12 +91,19 @@ acepta arrastrar `.xls` o `.xlsx`.
 
 ## GitHub Codespaces
 
+- **Arranque automático**: al iniciar el Codespace se ejecuta solo
+  `bash .devcontainer/start-all.sh` (levanta backend :8000 + frontend :5173,
+  aplica migraciones y verifica ambos). Si algo falla, mira
+  `.devcontainer/logs/backend.log` y `frontend.log`. También puedes correrlo
+  a mano en cualquier momento: es idempotente (no duplica procesos).
+- Los puertos **5173 y 8000** se publican solos (ver `.devcontainer/`).
+  Ábrelos desde la pestaña PORTS → *Forwarded Address* (el nombre del
+  Codespace cambia al reiniciar: **nunca uses URLs viejas guardadas**).
 - El navegador **no alcanza `localhost:8000`** (ese `localhost` es tu máquina).
   El frontend usa rutas relativas `/api/...` y el proxy de Vite las reenvía
   dentro del Codespace. No hardcodees `http://localhost:8000` en el código.
-- CORS ya permite `https://*.app.github.dev` (ver `backend/app/main.py`).
-- Expón los puertos **5173 y 8000** como **Public** en la pestaña PORTS.
-- Si el nombre del Codespace cambia, actualiza `CORS_ORIGINS` en `backend/.env`.
+- CORS ya permite `https://*.app.github.dev` (ver `backend/app/main.py`),
+  así que los renombres del Codespace no rompen nada.
 
 ## Usuarios y contraseñas
 
