@@ -258,12 +258,12 @@
             .catch(function (err) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Entrar al Sistema';
-                alert('No se pudo conectar al servidor. Verifique que el backend está corriendo en el puerto 8000.');
+                alert('No se pudo conectar al servidor. Intenta de nuevo en unos minutos.');
             });
         });
 
         if (localStorage.getItem('user_token')) {
-            window.location.href = 'http://localhost:5173/dashboard';
+            window.location.href = '/dashboard';
         }
     </script>
 </body>

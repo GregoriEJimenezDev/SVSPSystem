@@ -1,32 +1,23 @@
-version: "3.9"
+﻿services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend.env
 
-services:
-  # Aplicación backend + frontend compilado en un solo contenedor
-  app:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - SECRET_KEY=${SECRET_KEY}
-      - DEBUG=False
-      - CORS_ORIGINS=${CORS_ORIGINS}
+  web:
+    build: ./frontend
+    restart: unless-stopped
     depends_on:
-      - db
-    restart: unless-stopped
-
-  # Base de datos PostgreSQL
-  db:
-    image: postgres:15
+      - backend
     environment:
-      - POSTGRES_DB: svsp
-      - POSTGRES_USER: ${POSTGRES_USER}
-      - POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DOMINIO: ${'$'}{DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - pg_data:/var/lib/postgresql/data
-    restart: unless-stopped
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
-  pg_data:
+  caddy_data:
+  caddy_config:

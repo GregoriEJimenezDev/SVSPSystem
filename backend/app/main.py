@@ -7,8 +7,6 @@ from core.config import get_settings
 from app.routers import auth, employees, attendance, visitors, justifications, adminpro
 from app.routers import departments
 
-from core.config import get_settings
-
 settings = get_settings()
 
 _UNCONFIGURED_DB_URL = "postgresql://user:password@localhost:5432/svsp"
@@ -44,13 +42,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configurado explícitamente con orígenes desde settings.
-# allow_origin_regex cubre los frontends servidos desde GitHub Codespaces
-# (*.app.github.dev), donde el navegador no puede usar localhost.
+# CORS configurado para el dominio del frontend (ver backend.env.example).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.app\.github\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
