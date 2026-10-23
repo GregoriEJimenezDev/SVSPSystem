@@ -1,4 +1,4 @@
-﻿services:
+services:
   backend:
     build: ./backend
     restart: unless-stopped
@@ -10,7 +10,7 @@
     depends_on:
       - backend
     environment:
-      DOMINIO: ${'$'}{DOMINIO}
+      DOMINIO: ${DOMINIO}
     ports:
       - "80:80"
       - "443:443"
