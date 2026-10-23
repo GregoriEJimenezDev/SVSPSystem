@@ -1,4 +1,4 @@
-﻿{$DOMINIO} {
+{$DOMINIO} {
     encode zstd gzip
 
     handle /api/* {

@@ -1,4 +1,4 @@
-﻿.git
+.git
 .env
 .env.*
 venv
@@ -8,4 +8,3 @@ __pycache__
 *.db
 *.log
 .pytest_cache
-tests
